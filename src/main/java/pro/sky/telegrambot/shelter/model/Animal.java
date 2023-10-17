@@ -9,7 +9,7 @@ public class Animal {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    private String typeOfAnimal;
+    private TypeOfAnimal typeOfAnimal;
     private String name;
     private String breed;
     private String gender;
@@ -24,7 +24,7 @@ public class Animal {
 
     public Animal(){
     }
-    public Animal(Long id, String typeOfAnimal, String name, String breed, String gender, String color, LocalDate DOB, String health, String characteristic, Boolean attached) {
+    public Animal(Long id, TypeOfAnimal typeOfAnimal, String name, String breed, String gender, String color, LocalDate DOB, String health, String characteristic, Boolean attached) {
         this.id = id;
         this.typeOfAnimal = typeOfAnimal;
         this.name = name;
@@ -45,11 +45,11 @@ public class Animal {
         this.id = id;
     }
 
-    public String getTypeOfAnimal() {
+    public TypeOfAnimal getTypeOfAnimal() {
         return typeOfAnimal;
     }
 
-    public void setTypeOfAnimal(String typeOfAnimal) {
+    public void setTypeOfAnimal(TypeOfAnimal typeOfAnimal) {
         this.typeOfAnimal = typeOfAnimal;
     }
 
