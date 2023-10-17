@@ -10,6 +10,7 @@ public class Animal {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private TypeOfAnimal typeOfAnimal;
+    public enum TypeOfAnimal { CAT, DOG}
     private String name;
     private String breed;
     private String gender;
