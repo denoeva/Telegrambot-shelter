@@ -13,7 +13,9 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import java.util.List;
-
+/**
+ * Class to process all incoming messages from Telegram
+ */
 @Service
 public class TelegramBotUpdatesListener implements UpdatesListener {
 
@@ -27,6 +29,11 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
         telegramBot.setUpdatesListener(this);
     }
 
+    /**
+     * Method to process all incoming messages from Telegram
+     * @param updates all updates from bot
+     * @return <code>UpdatesListener.CONFIRMED_UPDATES_ALL</code>
+     */
     @Override
     public int process(List<Update> updates) {
         updates.forEach(update -> {

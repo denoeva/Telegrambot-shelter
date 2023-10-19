@@ -1,5 +1,9 @@
 package pro.sky.telegrambot.shelter.model;
 
+/**
+ * Class to store information about volunteers working in the shelter
+ * @version $Revision: 1 $
+ */
 public class Volunteer {
     private Long id;
     private String name;

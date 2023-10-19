@@ -1,7 +1,10 @@
 package pro.sky.telegrambot.shelter.model;
 
 import java.util.Objects;
-
+/**
+ * Class to store information about users
+ * @version $Revision: 1 $
+ */
 public class User {
     private Long id;
     private String name;

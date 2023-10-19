@@ -3,7 +3,10 @@ package pro.sky.telegrambot.shelter.model;
 import javax.persistence.*;
 import java.time.LocalDate;
 import java.util.Objects;
-
+/**
+ * Class to represent model of animals
+ * @version $Revision: 1 $
+ */
 @Entity
 public class Animal {
     @Id

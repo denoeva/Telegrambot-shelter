@@ -4,7 +4,10 @@ import javax.persistence.*;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Objects;
-
+/**
+ * Class to information about shelter
+ * @version $Revision: 1 $
+ */
 @Entity
 public class Shelter {
     @Id
