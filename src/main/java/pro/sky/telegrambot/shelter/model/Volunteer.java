@@ -1,5 +1,8 @@
 package pro.sky.telegrambot.shelter.model;
 
+import javax.persistence.Entity;
+
+@Entity
 public class Volunteer {
     private Long id;
     private String name;

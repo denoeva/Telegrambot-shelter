@@ -1,7 +1,10 @@
 package pro.sky.telegrambot.shelter.model;
 
-import java.util.Objects;
+import liquibase.pro.packaged.E;
 
+import javax.persistence.Entity;
+import java.util.Objects;
+@Entity
 public class User {
     private Long id;
     private String name;
