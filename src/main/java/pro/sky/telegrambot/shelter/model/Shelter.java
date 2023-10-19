@@ -5,13 +5,11 @@ import java.util.Calendar;
 import java.util.List;
 import java.util.Objects;
 
-@Entity
 public class Shelter {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String typeOfShelter;
-    @OneToMany(mappedBy = "shelter")
     private List<Animal> animals;
     private String infoOfShelter;
     private Calendar timetableOfWork;

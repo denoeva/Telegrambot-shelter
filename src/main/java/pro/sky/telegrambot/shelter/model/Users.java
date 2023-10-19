@@ -1,19 +1,22 @@
 package pro.sky.telegrambot.shelter.model;
 
-import liquibase.pro.packaged.E;
-
 import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
 import java.util.Objects;
 @Entity
-public class User {
+public class Users {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String name;
     private Long chatId;
     private String phoneNumber;
     private Boolean attached;
-    public User(){
+    public Users(){
     }
-    public User(Long id, String name, Long chatId, String phoneNumber, Boolean attached) {
+    public Users(Long id, String name, Long chatId, String phoneNumber, Boolean attached) {
         this.id = id;
         this.name = name;
         this.chatId = chatId;
@@ -70,8 +73,8 @@ public class User {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        User user = (User) o;
-        return Objects.equals(id, user.id) && Objects.equals(name, user.name) && Objects.equals(chatId, user.chatId) && Objects.equals(phoneNumber, user.phoneNumber) && Objects.equals(attached, user.attached);
+        Users users = (Users) o;
+        return Objects.equals(id, users.id) && Objects.equals(name, users.name) && Objects.equals(chatId, users.chatId) && Objects.equals(phoneNumber, users.phoneNumber) && Objects.equals(attached, users.attached);
     }
 
     @Override

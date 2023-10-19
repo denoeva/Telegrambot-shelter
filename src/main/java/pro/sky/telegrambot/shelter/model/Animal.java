@@ -10,7 +10,7 @@ public class Animal {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private TypeOfAnimal typeOfAnimal;
-    public enum TypeOfAnimal { CAT, DOG}
+    public enum TypeOfAnimal {CAT, DOG}
     private String name;
     private String breed;
     private String gender;
@@ -19,9 +19,6 @@ public class Animal {
     private String health;
     private String characteristic;
     private Boolean attached;
-    @ManyToOne
-    @JoinColumn(name = "shelter_id")
-    private Shelter shelter;
 
     public Animal(){
     }
@@ -116,14 +113,6 @@ public class Animal {
 
     public void setAttached(Boolean attached) {
         this.attached = attached;
-    }
-
-    public Shelter getShelter() {
-        return shelter;
-    }
-
-    public void setShelter(Shelter shelter) {
-        this.shelter = shelter;
     }
 
     @Override
