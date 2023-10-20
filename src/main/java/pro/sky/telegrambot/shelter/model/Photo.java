@@ -3,7 +3,10 @@ package pro.sky.telegrambot.shelter.model;
 import javax.persistence.*;
 import java.util.Arrays;
 import java.util.Objects;
-
+/**
+ * Class to store photos of animals sent by users in the reports
+ * @version $Revision: 1 $
+ */
 @Entity
 public class Photo {
     @Id

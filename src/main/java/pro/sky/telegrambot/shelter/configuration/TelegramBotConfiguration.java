@@ -5,7 +5,10 @@ import com.pengrad.telegrambot.model.DeleteMyCommands;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
+/**
+ * Class to configure Telegram bot
+ * @version $Revision: 1 $
+ */
 @Configuration
 public class TelegramBotConfiguration {
 

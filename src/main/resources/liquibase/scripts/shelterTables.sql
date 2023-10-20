@@ -1,11 +1,13 @@
 -- liquibase formatted sql
 -- changeset elena:1
 
-CREATE TABLE animals(
+CREATE TABLE animal(
     id BIGSERIAL PRIMARY KEY,
-    typeOfAnimal VARCHAR NOT NULL,
+    type_of_animal INTEGER NOT NULL,
+    shelter_id BIGSERIAL NOT NULL,
     name VARCHAR NOT NULL,
     breed VARCHAR,
+    gender VARCHAR,
     color VARCHAR NOT NULL,
     DOB DATE NOT NULL,
     health VARCHAR,
@@ -14,21 +16,23 @@ CREATE TABLE animals(
 );
 
 CREATE TABLE photo(
-    id BIGSERIAL PRIMARY KEY,
-    filePath VARCHAR NOT NULL,
-    fileSize BIGINT NOT NULL,
-    media_type VARCHAR NOT NULL
-);
+      id BIGSERIAL PRIMARY KEY,
+      file_path VARCHAR NOT NULL,
+      file_size BIGINT NOT NULL,
+      media_type VARCHAR NOT NULL,
+      data bytea NOT NULL,
+      animal_id BIGSERIAL NOT NULL
+  );
 
-Create TABLE users (
+Create TABLE users(
     id BIGSERIAL PRIMARY KEY,
     name VARCHAR,
     chat_id BIGINT NOT NULL,
-    phoneNumber VARCHAR,
+    phone_number VARCHAR,
     attached BOOLEAN
 );
 
-CREATE TABLE volunteers(
+CREATE TABLE volunteer(
     id BIGSERIAL PRIMARY KEY,
     chat_id BIGINT NOT NULL,
     name VARCHAR NOT NULL

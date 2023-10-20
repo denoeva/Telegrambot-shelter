@@ -1,16 +1,26 @@
 package pro.sky.telegrambot.shelter.model;
 
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
 import java.util.Objects;
 
-public class User {
+/** Class to store information about users
+ * @version $Revision: 1 $
+ */
+@Entity
+public class Users {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String name;
     private Long chatId;
     private String phoneNumber;
     private Boolean attached;
-    public User(){
+    public Users(){
     }
-    public User(Long id, String name, Long chatId, String phoneNumber, Boolean attached) {
+    public Users(Long id, String name, Long chatId, String phoneNumber, Boolean attached) {
         this.id = id;
         this.name = name;
         this.chatId = chatId;
@@ -67,7 +77,7 @@ public class User {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        User user = (User) o;
+        Users user = (Users) o;
         return Objects.equals(id, user.id) && Objects.equals(name, user.name) && Objects.equals(chatId, user.chatId) && Objects.equals(phoneNumber, user.phoneNumber) && Objects.equals(attached, user.attached);
     }
 
