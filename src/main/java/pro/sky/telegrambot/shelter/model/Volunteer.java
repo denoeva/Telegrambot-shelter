@@ -5,6 +5,8 @@ package pro.sky.telegrambot.shelter.model;
  * @version $Revision: 1 $
  */
 public class Volunteer {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String name;
     private Long chatId;

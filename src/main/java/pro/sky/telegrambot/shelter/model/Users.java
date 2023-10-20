@@ -1,5 +1,9 @@
 package pro.sky.telegrambot.shelter.model;
 
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
 import java.util.Objects;
 /**
  * Class to store information about users
@@ -11,9 +15,9 @@ public class User {
     private Long chatId;
     private String phoneNumber;
     private Boolean attached;
-    public User(){
+    public Users(){
     }
-    public User(Long id, String name, Long chatId, String phoneNumber, Boolean attached) {
+    public Users(Long id, String name, Long chatId, String phoneNumber, Boolean attached) {
         this.id = id;
         this.name = name;
         this.chatId = chatId;

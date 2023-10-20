@@ -14,7 +14,6 @@ public class Shelter {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String typeOfShelter;
-    @OneToMany(mappedBy = "shelter")
     private List<Animal> animals;
     private String infoOfShelter;
     private Calendar timetableOfWork;
