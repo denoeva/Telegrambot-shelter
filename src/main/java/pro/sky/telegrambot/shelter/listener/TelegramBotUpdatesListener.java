@@ -44,7 +44,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                 case "/start":
                     String welcomeMessage = "Привет!\uD83D\uDC4B Это бот поддержки приюта для животных \"Три столицы\"! Здесь вы можете узнать информацию о приюте и посмотреть наших питомцев." +
                             " Если Вам нужна помощь волонтера, то нажмите \"Позвать на помощь\"";
-                    SendMessage sendMessage = new SendMessage(chatId, welcomeMessage).replyMarkup(prepareInlineKeyBoard());
+                    SendMessage sendMessage = new SendMessage(chatId, welcomeMessage).replyMarkup(prepareStartingInlineKeyBoard());
                     telegramBot.execute(sendMessage);
                     break;
                 case "/schedule":
@@ -57,7 +57,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                             "\nПри поступлении в приют на каждое животное заводится личная карточка, куда вносятся данные о вакцинации," +
                             " стерилизации, причинах поступления в приют, данные о физическом состоянии и характере, ставится отметка с датой передачи в семью." +
                             " Все животные в приюте круглосуточно находятся под наблюдением сотрудников и ветеринарных врачей. ";
-                    SendMessage info = new SendMessage(chatId, shelterInfo);
+                    SendMessage info = new SendMessage(chatId, shelterInfo).replyMarkup(prepareInfoInlineKeyBoard());
                     telegramBot.execute(info);
                     break;
                 case "/contacts":
@@ -90,7 +90,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                             "\n" +
                             "\uD83D\uDD38Постепенная адаптация: Ожидайте, что животное будет нуждаться во времени для приспособления к новому дому и семье. " +
                             "Уделите ему достаточно внимания, заботы и терпения для создания у него комфортной атмосферы и привязанности к вам.";
-                    SendMessage rulesInfo = new SendMessage(chatId, rules);
+                    SendMessage rulesInfo = new SendMessage(chatId, rules).replyMarkup(prepareRulesInlineKeyBoard());
                     telegramBot.execute(rulesInfo);
                     break;
                 case "/docs":
@@ -131,6 +131,30 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                     SendMessage recommendsInfo = new SendMessage(chatId, recommends);
                     telegramBot.execute(recommendsInfo);
                     break;
+                case "/save":
+                    String saveInstructions = "Находясь на территории приюта, пожалуйста, соблюдайте наши правила и технику безопасности!\n" +
+                            "Запрещается:\n" + "\uD83D\uDD12 Самостоятельно открывать выгулы и вольеры без разрешения работника приюта.\n" +
+                            "\uD83C\uDF2D Кормить животных. Этим Вы можете спровоцировать драку. Угощения разрешены только постоянным опекунам и волонтерам, во время прогулок с животными на поводке.\n" +
+                            "\uD83D\uDDD1 Оставлять после себя мусор на территории приюта и прилегающей территории.\n" +
+                            "\uD83D\uDED1 Подходить близко к вольерам и гладить собак через сетку на выгулах. Животные могут быть агрессивны!\n" +
+                            "\uD83D\uDE3F Кричать, размахивать руками, бегать между будками или вольерами, пугать и дразнить животных.\n" +
+                            "\uD83D\uDC6A Посещение приюта для детей дошкольного и младшего школьного возраста без сопровождения взрослых.\n" +
+                            "\uD83C\uDF7E Посещение приюта в состоянии алкогольного, наркотического опьянения.";
+                    SendMessage safetyInstructions = new SendMessage(chatId, saveInstructions);
+                    telegramBot.execute(safetyInstructions);
+                    break;
+                case "/reject":
+                    String reasonsForRejection = "Мы можем отказаться доверить Вам животное по нескольким причинам:\n" +
+                            "1. Отказ обеспечить обязательные условия безопасности питомца на новом месте\n" +
+                            "2. Нестабильные отношения в семье, в которую хотят забрать питомца\n" +
+                            "3. Наличие дома большого количества животных\n" +
+                            "4. Маленькие дети в семье (Мы не против детей, но при выборе семьи приоритетом является польза для животных, многие из которых с трудом социализировались после психотравм)\n" +
+                            "5. Аллергия на шерсть\n" +
+                            "6. Животное забирают в подарок кому-то\n" +
+                            "7. Животное забирают в целях использования его рабочих качеств\n" +
+                            "8. Отсутствие регистрации и собственного жилья или его несоответствие нормам приюта";
+                    SendMessage reasonsForRejections = new SendMessage(chatId, reasonsForRejection);
+                    telegramBot.execute(reasonsForRejections);
                 case "/tipsFromDogHandler":
                     String tipsFromDogHandler = "\uD83D\uDC36 Советы кинолога по общению с собакой:\n" +
                             "\n" +
@@ -213,15 +237,31 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
      * Method prepares starting inline keyboard
      * @return <code>InlineKeyboardMarkup</code>
      */
-    private static InlineKeyboardMarkup prepareInlineKeyBoard() {
+    private static InlineKeyboardMarkup prepareStartingInlineKeyBoard() {
         InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
-        keyboardMarkup.addRow(new InlineKeyboardButton("ℹ\uFE0F Информация о приюте").callbackData("/info"), new InlineKeyboardButton("\uD83D\uDD50 Режим работы и адрес").callbackData("/schedule"));
-        keyboardMarkup.addRow(new InlineKeyboardButton("\uD83D\uDCD1 Контактные данные").callbackData("/contacts"), new InlineKeyboardButton("\uD83E\uDDBA Техника безопасности").callbackData("/save"));
-        keyboardMarkup.addRow(new InlineKeyboardButton("\uD83D\uDC36 Посмотреть животных").callbackData("/animals"), new InlineKeyboardButton("\u2753 Позвать волонтера").callbackData("/help"));
-        keyboardMarkup.addRow(new InlineKeyboardButton("\uD83D\uDCD5 Правила знакомства").callbackData("/rules"), new InlineKeyboardButton("\uD83D\uDCC4 Необходимые документы").callbackData("/docs"));
-        keyboardMarkup.addRow(new InlineKeyboardButton("\uD83D\uDD16 Рекомендации").callbackData("/recommends"));
-
-
+        keyboardMarkup.addRow(new InlineKeyboardButton("ℹ\uFE0F Информация о приюте").callbackData("/info"), new InlineKeyboardButton("\uD83D\uDC36 Посмотреть животных").callbackData("/animals"));
+        keyboardMarkup.addRow(new InlineKeyboardButton("\uD83D\uDCD5 Правила знакомства").callbackData("/rules"), new InlineKeyboardButton("\u2753 Позвать волонтера").callbackData("/help"));
+        keyboardMarkup.addRow(new InlineKeyboardButton("\uD83D\uDD8B Принять контакты").callbackData("/save_user"));
+        return keyboardMarkup;
+    }
+    /**
+     * Method prepares inline keyboard with information about shelter
+     * @return <code>InlineKeyboardMarkup</code>
+     */
+    private static InlineKeyboardMarkup prepareInfoInlineKeyBoard() {
+        InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
+        keyboardMarkup.addRow(new InlineKeyboardButton("\uD83D\uDD50 Режим работы и адрес").callbackData("/schedule"), new InlineKeyboardButton("\uD83D\uDCD1 Контактные данные").callbackData("/contacts"));
+        keyboardMarkup.addRow(new InlineKeyboardButton("\uD83E\uDDBA Техника безопасности").callbackData("/save"));
+        return keyboardMarkup;
+    }
+    /**
+     * Method prepares inline keyboard with information about documents
+     * @return <code>InlineKeyboardMarkup</code>
+     */
+    private static InlineKeyboardMarkup prepareRulesInlineKeyBoard() {
+        InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
+        keyboardMarkup.addRow(new InlineKeyboardButton("\uD83D\uDCC4 Необходимые документы").callbackData("/docs"), new InlineKeyboardButton("\uD83D\uDD16 Рекомендации").callbackData("/recommends"));
+        keyboardMarkup.addRow(new InlineKeyboardButton("\u2753 Возможные причины для отказа").callbackData("/reject"));
         return keyboardMarkup;
     }
 
