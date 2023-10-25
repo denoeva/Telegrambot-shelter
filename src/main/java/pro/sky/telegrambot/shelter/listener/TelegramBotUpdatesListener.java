@@ -42,8 +42,10 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
             String message = extractMessage(update, chatId);
             switch (message) {
                 case "/start":
-                    String welcomeMessage = "Привет!\uD83D\uDC4B Это бот поддержки приюта для животных \"Три столицы\"! Здесь вы можете узнать информацию о приюте и посмотреть наших питомцев." +
-                            " Если Вам нужна помощь волонтера, то нажмите \"Позвать на помощь\"";
+                    String welcomeMessage = "Привет!\uD83D\uDC4B \n" +
+                            "Это бот поддержки приюта для животных \"Три столицы\". \n" +
+                            "Здесь вы можете узнать информацию о приюте и посмотреть наших питомцев.\n" +
+                            "Если Вам нужна помощь волонтера, то нажмите \"Позвать волонтера\"";
                     SendMessage sendMessage = new SendMessage(chatId, welcomeMessage).replyMarkup(prepareStartingInlineKeyBoard());
                     telegramBot.execute(sendMessage);
                     break;
@@ -53,10 +55,13 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                     telegramBot.execute(schedule);
                     break;
                 case "/info":
-                    String shelterInfo = "Мы - некоммерческая организация «Приют для животных «Три столицы». C 2008 года мы спасаем бездомных кошек и собак, заботимся о них, ищем им дом. Мы содержим приют, в котором живут около 230 собак и 70 кошек." +
-                            "\nПри поступлении в приют на каждое животное заводится личная карточка, куда вносятся данные о вакцинации," +
-                            " стерилизации, причинах поступления в приют, данные о физическом состоянии и характере, ставится отметка с датой передачи в семью." +
-                            " Все животные в приюте круглосуточно находятся под наблюдением сотрудников и ветеринарных врачей. ";
+                    String shelterInfo = "Мы - некоммерческая организация «Приют для животных» \n" +
+                            "«Три столицы». C 2008 года мы спасаем бездомных кошек и собак, заботимся о них, ищем им дом. Мы содержим приют, \n" +
+                            "в котором живут около 20 собак и 10 кошек.\n" +
+                            "При поступлении в приют на каждое животное заводится личная карточка, куда вносятся данные о вакцинации, \n" +
+                            "стерилизации, причинах поступления в приют, данные о физическом состоянии и характере, ставится отметка с датой передачи в семью.\n" +
+                            "Все животные в приюте круглосуточно находятся под наблюдением сотрудников и ветеринарных врачей."
+                            ;
                     SendMessage info = new SendMessage(chatId, shelterInfo).replyMarkup(prepareInfoInlineKeyBoard());
                     telegramBot.execute(info);
                     break;
@@ -94,7 +99,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                     telegramBot.execute(rulesInfo);
                     break;
                 case "/docs":
-                    String docs = "Список документов, необходимых для того, чтобы взять животное из приюта:\n" +
+                    String docs = "\uD83D\uDCC4 Список документов, необходимых для того, чтобы взять животное из приюта:\n" +
                             "\n" +
                             "1. Документ, удостоверяющий личность: Паспорт или другой идентификационный документ, удостоверяющий вашу личность и возраст.\n" +
                             "\n" +
@@ -132,7 +137,8 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                     telegramBot.execute(recommendsInfo);
                     break;
                 case "/save":
-                    String saveInstructions = "Находясь на территории приюта, пожалуйста, соблюдайте наши правила и технику безопасности!\n" +
+                    String saveInstructions = "\uD83E\uDDBA Находясь на территории приюта, пожалуйста,\n" +
+                            "соблюдайте наши правила и технику безопасности!\n" +
                             "Запрещается:\n" + "\uD83D\uDD12 Самостоятельно открывать выгулы и вольеры без разрешения работника приюта.\n" +
                             "\uD83C\uDF2D Кормить животных. Этим Вы можете спровоцировать драку. Угощения разрешены только постоянным опекунам и волонтерам, во время прогулок с животными на поводке.\n" +
                             "\uD83D\uDDD1 Оставлять после себя мусор на территории приюта и прилегающей территории.\n" +
@@ -144,7 +150,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                     telegramBot.execute(safetyInstructions);
                     break;
                 case "/reject":
-                    String reasonsForRejection = "Мы можем отказаться доверить Вам животное по нескольким причинам:\n" +
+                    String reasonsForRejection = "\uD83D\uDED1 Мы можем отказаться доверить Вам животное по нескольким причинам:\n" +
                             "1. Отказ обеспечить обязательные условия безопасности питомца на новом месте\n" +
                             "2. Нестабильные отношения в семье, в которую хотят забрать питомца\n" +
                             "3. Наличие дома большого количества животных\n" +
@@ -155,6 +161,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                             "8. Отсутствие регистрации и собственного жилья или его несоответствие нормам приюта";
                     SendMessage reasonsForRejections = new SendMessage(chatId, reasonsForRejection);
                     telegramBot.execute(reasonsForRejections);
+                    break;
                 case "/tipsFromDogHandler":
                     String tipsFromDogHandler = "\uD83D\uDC36 Советы кинолога по общению с собакой:\n" +
                             "\n" +
