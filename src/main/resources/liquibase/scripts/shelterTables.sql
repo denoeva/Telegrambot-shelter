@@ -4,7 +4,6 @@
 CREATE TABLE animal(
     id BIGSERIAL PRIMARY KEY,
     type_of_animal INTEGER NOT NULL,
-    shelter_id BIGSERIAL NOT NULL,
     name VARCHAR NOT NULL,
     breed VARCHAR,
     gender VARCHAR,
