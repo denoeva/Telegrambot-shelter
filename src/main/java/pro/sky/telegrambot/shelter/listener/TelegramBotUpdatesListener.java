@@ -42,9 +42,11 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
             String message = extractMessage(update, chatId);
             switch (message) {
                 case "/start":
-                    String welcomeMessage = "Привет!\uD83D\uDC4B Это бот поддержки приюта для животных \"Три столицы\"! Здесь вы можете узнать информацию о приюте и посмотреть наших питомцев." +
-                            " Если Вам нужна помощь волонтера, то нажмите \"Позвать на помощь\"";
-                    SendMessage sendMessage = new SendMessage(chatId, welcomeMessage).replyMarkup(prepareInlineKeyBoard());
+                    String welcomeMessage = "Привет!\uD83D\uDC4B \n" +
+                            "Это бот поддержки приюта для животных \"Три столицы\". \n" +
+                            "Здесь вы можете узнать информацию о приюте и посмотреть наших питомцев.\n" +
+                            "Если Вам нужна помощь волонтера, то нажмите \"Позвать волонтера\"";
+                    SendMessage sendMessage = new SendMessage(chatId, welcomeMessage).replyMarkup(prepareStartingInlineKeyBoard());
                     telegramBot.execute(sendMessage);
                     break;
                 case "/schedule":
@@ -53,11 +55,14 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                     telegramBot.execute(schedule);
                     break;
                 case "/info":
-                    String shelterInfo = "Мы - некоммерческая организация «Приют для животных «Три столицы». C 2008 года мы спасаем бездомных кошек и собак, заботимся о них, ищем им дом. Мы содержим приют, в котором живут около 230 собак и 70 кошек." +
-                            "\nПри поступлении в приют на каждое животное заводится личная карточка, куда вносятся данные о вакцинации," +
-                            " стерилизации, причинах поступления в приют, данные о физическом состоянии и характере, ставится отметка с датой передачи в семью." +
-                            " Все животные в приюте круглосуточно находятся под наблюдением сотрудников и ветеринарных врачей. ";
-                    SendMessage info = new SendMessage(chatId, shelterInfo);
+                    String shelterInfo = "Мы - некоммерческая организация «Приют для животных» \n" +
+                            "«Три столицы». C 2008 года мы спасаем бездомных кошек и собак, заботимся о них, ищем им дом. Мы содержим приют, \n" +
+                            "в котором живут около 20 собак и 10 кошек.\n" +
+                            "При поступлении в приют на каждое животное заводится личная карточка, куда вносятся данные о вакцинации, \n" +
+                            "стерилизации, причинах поступления в приют, данные о физическом состоянии и характере, ставится отметка с датой передачи в семью.\n" +
+                            "Все животные в приюте круглосуточно находятся под наблюдением сотрудников и ветеринарных врачей."
+                            ;
+                    SendMessage info = new SendMessage(chatId, shelterInfo).replyMarkup(prepareInfoInlineKeyBoard());
                     telegramBot.execute(info);
                     break;
                 case "/contacts":
@@ -90,11 +95,11 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                             "\n" +
                             "\uD83D\uDD38Постепенная адаптация: Ожидайте, что животное будет нуждаться во времени для приспособления к новому дому и семье. " +
                             "Уделите ему достаточно внимания, заботы и терпения для создания у него комфортной атмосферы и привязанности к вам.";
-                    SendMessage rulesInfo = new SendMessage(chatId, rules);
+                    SendMessage rulesInfo = new SendMessage(chatId, rules).replyMarkup(prepareRulesInlineKeyBoard());
                     telegramBot.execute(rulesInfo);
                     break;
                 case "/docs":
-                    String docs = "Список документов, необходимых для того, чтобы взять животное из приюта:\n" +
+                    String docs = "\uD83D\uDCC4 Список документов, необходимых для того, чтобы взять животное из приюта:\n" +
                             "\n" +
                             "1. Документ, удостоверяющий личность: Паспорт или другой идентификационный документ, удостоверяющий вашу личность и возраст.\n" +
                             "\n" +
@@ -131,6 +136,104 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                     SendMessage recommendsInfo = new SendMessage(chatId, recommends);
                     telegramBot.execute(recommendsInfo);
                     break;
+                case "/save":
+                    String saveInstructions = "\uD83E\uDDBA Находясь на территории приюта, пожалуйста,\n" +
+                            "соблюдайте наши правила и технику безопасности!\n" +
+                            "Запрещается:\n" + "\uD83D\uDD12 Самостоятельно открывать выгулы и вольеры без разрешения работника приюта.\n" +
+                            "\uD83C\uDF2D Кормить животных. Этим Вы можете спровоцировать драку. Угощения разрешены только постоянным опекунам и волонтерам, во время прогулок с животными на поводке.\n" +
+                            "\uD83D\uDDD1 Оставлять после себя мусор на территории приюта и прилегающей территории.\n" +
+                            "\uD83D\uDED1 Подходить близко к вольерам и гладить собак через сетку на выгулах. Животные могут быть агрессивны!\n" +
+                            "\uD83D\uDE3F Кричать, размахивать руками, бегать между будками или вольерами, пугать и дразнить животных.\n" +
+                            "\uD83D\uDC6A Посещение приюта для детей дошкольного и младшего школьного возраста без сопровождения взрослых.\n" +
+                            "\uD83C\uDF7E Посещение приюта в состоянии алкогольного, наркотического опьянения.";
+                    SendMessage safetyInstructions = new SendMessage(chatId, saveInstructions);
+                    telegramBot.execute(safetyInstructions);
+                    break;
+                case "/reject":
+                    String reasonsForRejection = "\uD83D\uDED1 Мы можем отказаться доверить Вам животное по нескольким причинам:\n" +
+                            "1. Отказ обеспечить обязательные условия безопасности питомца на новом месте\n" +
+                            "2. Нестабильные отношения в семье, в которую хотят забрать питомца\n" +
+                            "3. Наличие дома большого количества животных\n" +
+                            "4. Маленькие дети в семье (Мы не против детей, но при выборе семьи приоритетом является польза для животных, многие из которых с трудом социализировались после психотравм)\n" +
+                            "5. Аллергия на шерсть\n" +
+                            "6. Животное забирают в подарок кому-то\n" +
+                            "7. Животное забирают в целях использования его рабочих качеств\n" +
+                            "8. Отсутствие регистрации и собственного жилья или его несоответствие нормам приюта";
+                    SendMessage reasonsForRejections = new SendMessage(chatId, reasonsForRejection);
+                    telegramBot.execute(reasonsForRejections);
+                    break;
+                case "/tipsFromDogHandler":
+                    String tipsFromDogHandler = "\uD83D\uDC36 Советы кинолога по общению с собакой:\n" +
+                            "\n" +
+                            "\ud83d\ude0d 1. Время вместе.\n" +
+                            "Чем больше вы будете проводить время с собакой, тем крепче станет ваша эмоциональная связь. Не стоит ограничиваться одними прогулками - животному нужно больше вашего внимания.\n" +
+                            "\n" +
+                            "Проводите совместные игры, ухаживайте за псом, чтобы он увидел, что интересен вам всегда.\n" +
+                            "\n" +
+                            "\ud83d\ude35 2. Не бейте.\n" +
+                            "Животное никогда не будет воспринимать побои в качестве метода воспитания: насилие может породить страх, но никак не любовь. Страх никогда не заставит собаку быть вам преданной.\n" +
+                            "\n" +
+                            "Воспитывать пса нужно только через позитивные методы: дать вкусняшку за хорошее поведение или отругать строгим голосом за плохое.\n" +
+                            "\n" +
+                            "\ud83d\ude2d 3. Уважайте чувства.\n" +
+                            "Животное может испытывать разные эмоции - страх, любопытство, обиду, радость, злость. Не стоит обесценивать их чувства - собака может вполне обоснованно на вас обидеться.\n" +
+                            "\n" +
+                            "Даже если вы сильно устали, то не стоит прогонять любимца: уделите ему хотя бы 5 минут.\n"+
+                            "\n" +
+                            "\ud83d\ude33 4. Нормальные прогулки.\n" +
+                            "Животное может отправиться на улицу только с вами, поэтому радостно ждет каждой прогулки. Ведите себя на улице адекватно: если пес хочет изучить территорию, то не стоит его грубо одергивать. В конце концов, это просто его инстинкты, а не желание вам досадить.\n" +
+                            "\n" +
+                            "Выбирайтесь хотя бы в выходные на природу, чтобы пес мог вдоволь насладиться свободой и свежим воздухом.\n" +
+                            "\n" +
+                            "\ud83d\udd70 5. Организованность.\n" +
+                            "Собаки любят, когда все жизненные события происходят по расписанию: еда появляется в одно и то же время, на улицу вы ходите тоже в определенные часы.\n" +
+                            "\n" +
+                            "Благодаря такому подходу животное поймет, что вам можно доверять, и вам удастся выстроить нормальные взаимоотношения."
+                            ;
+                    SendMessage tipsFromDogHandlerInfo = new SendMessage(chatId, tipsFromDogHandler);
+                    telegramBot.execute(tipsFromDogHandlerInfo);
+                    break;
+                case "/recommendationsForProvenDogHandlers":
+                    String recommendationsForProvenDogHandlers = "\ud83d\udd76 По каким критериям нужно выбирать кинолога?\n"+
+                            "\n" +
+                            "\ud83e\udd14 1. Образование.\n" +
+                            "Хороший кинолог – это не просто человек, который любит собак. Он должен отлично разбираться в психологии животных, уметь считывать язык тела, знать анатомию и физиологию, разбираться в породах. " +
+                            "Такой специалист обязательно предложит несколько способов решения задач, всегда будет мотивировать собаку и никогда не будет принуждать к занятиям.\n" +
+                            "\n" +
+                            "\ud83d\ude35 2. Методика обучения.\n" +
+                            "Грамотный специалист всегда расскажет, что и зачем он делает, при этом используя понятный и доступный язык для объяснения принципов своей работы. " +
+                            "Обратите внимание на то, как реагирует на кинолога собака, комфортно ли ей работать с ним. Важно, чтобы к питомцу не применяли силу и не заставляли работать насильно. " +
+                            "Методы, основанные на принуждении и насилии, сделают собаку запуганной и пассивной, сформируют страх и отвращение к занятиям. Таких методов надо избегать.\n" +
+                            "\n" +
+                            "\ud83d\ude14 3. Опыт.\n" +
+                            "Не нужно полагаться только на опыт, но и недооценивать его тоже не стоит. Следует поинтересоваться, как долго специалист работает с собаками. " +
+                            "Можно поискать отзывы о работе кинолога и рекомендации других владельцев собак. Безусловно, не нужно оценивать работу специалиста только по отзывам из интернета.\n" +
+                            "\n" +
+                            "\ud83d\ude44 4. Цели.\n" +
+                            "Выбирая специалиста, необходимо учитывать цели. Этот фактор может быть решающим при выборе специалиста, поскольку будет учитываться опыт и специализация каждого конкретного кинолога. " +
+                            "От того, что необходимо получить в итоге, зависит выбор.\n"
+                            ;
+                    SendMessage recommendationsForProvenDogHandlersInfo = new SendMessage(chatId, recommendationsForProvenDogHandlers);
+                    telegramBot.execute(recommendationsForProvenDogHandlersInfo);
+                    break;
+                case "/reasonsForRefusal":
+                    String reasonsForRefusal = "\ud83d\ude1f Причины отказа приютить питомца: \n" +
+                            "\n" +
+                            "1. Большое количество животных дома.\n" +
+                            "\n" +
+                            "2. Нестабильные отношения в семье.\n" +
+                            "\n" +
+                            "3. Наличие маленьких детей.\n" +
+                            "\n" +
+                            "4. Съемное жилье.\n" +
+                            "\n" +
+                            "5. Животное в подарок или для работы.\n" +
+                            "\n" +
+                            "\ud83d\udcaf Каждый критерий важен \ud83d\udcaf"
+                            ;
+                    SendMessage reasonsForRefusingTakeDogFromShelter = new SendMessage(chatId, reasonsForRefusal);
+                    telegramBot.execute(reasonsForRefusingTakeDogFromShelter);
+                    break;
                 default:
             }
         });
@@ -141,15 +244,31 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
      * Method prepares starting inline keyboard
      * @return <code>InlineKeyboardMarkup</code>
      */
-    private static InlineKeyboardMarkup prepareInlineKeyBoard() {
+    private static InlineKeyboardMarkup prepareStartingInlineKeyBoard() {
         InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
-        keyboardMarkup.addRow(new InlineKeyboardButton("ℹ\uFE0F Информация о приюте").callbackData("/info"), new InlineKeyboardButton("\uD83D\uDD50 Режим работы и адрес").callbackData("/schedule"));
-        keyboardMarkup.addRow(new InlineKeyboardButton("\uD83D\uDCD1 Контактные данные").callbackData("/contacts"), new InlineKeyboardButton("\uD83E\uDDBA Техника безопасности").callbackData("/save"));
-        keyboardMarkup.addRow(new InlineKeyboardButton("\uD83D\uDC36 Посмотреть животных").callbackData("/animals"), new InlineKeyboardButton("\u2753 Позвать волонтера").callbackData("/help"));
-        keyboardMarkup.addRow(new InlineKeyboardButton("\uD83D\uDCD5 Правила знакомства").callbackData("/rules"), new InlineKeyboardButton("\uD83D\uDCC4 Необходимые документы").callbackData("/docs"));
-        keyboardMarkup.addRow(new InlineKeyboardButton("\uD83D\uDD16 Рекомендации").callbackData("/recommends"));
-
-
+        keyboardMarkup.addRow(new InlineKeyboardButton("ℹ\uFE0F Информация о приюте").callbackData("/info"), new InlineKeyboardButton("\uD83D\uDC36 Посмотреть животных").callbackData("/animals"));
+        keyboardMarkup.addRow(new InlineKeyboardButton("\uD83D\uDCD5 Правила знакомства").callbackData("/rules"), new InlineKeyboardButton("\u2753 Позвать волонтера").callbackData("/help"));
+        keyboardMarkup.addRow(new InlineKeyboardButton("\uD83D\uDD8B Принять контакты").callbackData("/save_user"));
+        return keyboardMarkup;
+    }
+    /**
+     * Method prepares inline keyboard with information about shelter
+     * @return <code>InlineKeyboardMarkup</code>
+     */
+    private static InlineKeyboardMarkup prepareInfoInlineKeyBoard() {
+        InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
+        keyboardMarkup.addRow(new InlineKeyboardButton("\uD83D\uDD50 Режим работы и адрес").callbackData("/schedule"), new InlineKeyboardButton("\uD83D\uDCD1 Контактные данные").callbackData("/contacts"));
+        keyboardMarkup.addRow(new InlineKeyboardButton("\uD83E\uDDBA Техника безопасности").callbackData("/save"));
+        return keyboardMarkup;
+    }
+    /**
+     * Method prepares inline keyboard with information about documents
+     * @return <code>InlineKeyboardMarkup</code>
+     */
+    private static InlineKeyboardMarkup prepareRulesInlineKeyBoard() {
+        InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
+        keyboardMarkup.addRow(new InlineKeyboardButton("\uD83D\uDCC4 Необходимые документы").callbackData("/docs"), new InlineKeyboardButton("\uD83D\uDD16 Рекомендации").callbackData("/recommends"));
+        keyboardMarkup.addRow(new InlineKeyboardButton("\u2753 Возможные причины для отказа").callbackData("/reject"));
         return keyboardMarkup;
     }
 
