@@ -1,13 +1,13 @@
 "id": 1,
-"typeOfAnimal": CAT,
-"name": Соня,
-"breed": мейн-кун,
-"gender": ж,
-"color": пятнистый,
-"health": без болячек,
-"characteristic": ласковая, не стерилизована,
-"attached": true,
-"dob": 2021-05-10
+"typeOfAnimal": "CAT",
+"name": "Соня",
+"breed": "мейн-кун",
+"gender": "ж",
+"color": "пятнистый",
+"health": "без болячек",
+"characteristic": "ласковая, не стерилизована",
+"attached": "true",
+"dob": "2021-05-10"
 
 "id": 2,
 "typeOfAnimal": "CAT",

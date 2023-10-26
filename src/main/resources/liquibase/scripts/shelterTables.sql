@@ -37,3 +37,7 @@ CREATE TABLE volunteer(
     chat_id BIGINT NOT NULL,
     name VARCHAR NOT NULL
 );
+
+-- changeset anton:2
+ALTER TABLE animal
+DROP COLUMN shelter_id;
