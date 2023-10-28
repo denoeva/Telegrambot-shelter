@@ -16,12 +16,14 @@ import pro.sky.telegrambot.shelter.model.Animal;
 import pro.sky.telegrambot.shelter.model.Photo;
 import pro.sky.telegrambot.shelter.repository.AnimalRepository;
 import pro.sky.telegrambot.shelter.repository.PhotoRepository;
+import pro.sky.telegrambot.shelter.service.UserService;
 
 import javax.annotation.PostConstruct;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 import static pro.sky.telegrambot.shelter.model.Info.*;
+import static pro.sky.telegrambot.shelter.model.SaveUserContacts.*;
 
 /**
  * Class to process all incoming messages from Telegram
@@ -45,8 +47,16 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
         telegramBot.setUpdatesListener(this);
     }
 
+    private final UserService userService;
+
+    public TelegramBotUpdatesListener(UserService userService, TelegramBot telegramBot) {
+        this.userService = userService;
+        this.telegramBot = telegramBot;
+    }
+
     /**
      * Method to process all incoming messages from Telegram
+     *
      * @param updates all updates from bot
      * @return <code>UpdatesListener.CONFIRMED_UPDATES_ALL</code>
      */
@@ -126,13 +136,40 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                                 telegramBot.execute(photo);
                             }
                     );
+                case "/save_user":
+                    SendMessage userName = new SendMessage(chatId, NAME);
+                    telegramBot.execute(userName);
+                    if (update.message() != null) {
+                        String userRequest = update.message().text();
+                        String replyMessage = update.message().replyToMessage().text();
+                        if (update.message().replyToMessage() != null &&
+                                !update.message().replyToMessage().text().isEmpty()) {
+                            if (replyMessage.equals(NAME) || replyMessage.equals(NAME_AGAIN)) {
+                                userService.saveContactInfo(chatId, NAME, userRequest);
+                            }
+                        }
+                        SendMessage userPhone = new SendMessage(chatId, PHONE);
+                        telegramBot.execute(userPhone);
+                        if (update.message() != null) {
+                            if (update.message().replyToMessage() != null &&
+                                    !update.message().replyToMessage().text().isEmpty()) {
+                                if (replyMessage.equals(PHONE) || replyMessage.equals(PHONE_AGAIN)) {
+                                    userService.saveContactInfo(chatId, PHONE, userRequest);
+                                }
+                            }
+                        }
+                        userService.saveContactInfo(chatId, SAVE, userRequest);
+                    }
+                    break;
                 default:
             }
         });
         return UpdatesListener.CONFIRMED_UPDATES_ALL;
     }
+
     /**
      * Method prepares starting inline keyboard
+     *
      * @param animal animal entity from database
      * @return representation of animal to send in message
      */
@@ -144,6 +181,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
 
     /**
      * Method prepares starting inline keyboard
+     *
      * @return <code>InlineKeyboardMarkup</code>
      */
     private static InlineKeyboardMarkup prepareStartingInlineKeyBoard() {
@@ -153,8 +191,10 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
         keyboardMarkup.addRow(new InlineKeyboardButton("\uD83D\uDD8B Принять контакты").callbackData("/save_user"));
         return keyboardMarkup;
     }
+
     /**
      * Method prepares inline keyboard with information about shelter
+     *
      * @return <code>InlineKeyboardMarkup</code>
      */
     private static InlineKeyboardMarkup prepareInfoInlineKeyBoard() {
@@ -163,8 +203,10 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
         keyboardMarkup.addRow(new InlineKeyboardButton("\uD83E\uDDBA Техника безопасности").callbackData("/save"));
         return keyboardMarkup;
     }
+
     /**
      * Method prepares inline keyboard with information about documents
+     *
      * @return <code>InlineKeyboardMarkup</code>
      */
     private static InlineKeyboardMarkup prepareRulesInlineKeyBoard() {
@@ -173,8 +215,10 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
         keyboardMarkup.addRow(new InlineKeyboardButton("\u2753 Возможные причины для отказа").callbackData("/reject"));
         return keyboardMarkup;
     }
+
     /**
      * Method prepares inline keyboard to choose cats or dogs to look at
+     *
      * @return <code>InlineKeyboardMarkup</code>
      */
     private static InlineKeyboardMarkup prepareAnimalsInlineKeyBoard() {
@@ -182,11 +226,13 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
         keyboardMarkup.addRow(new InlineKeyboardButton("\uD83D\uDC31 Кошки").callbackData("/cats"), new InlineKeyboardButton("\uD83D\uDC36 Собаки").callbackData("/dogs"));
         return keyboardMarkup;
     }
+
     /**
      * Method prepares inline keyboard to choose the animal to be attached
+     *
      * @return <code>InlineKeyboardMarkup</code>
      */
-    private static InlineKeyboardMarkup prepareAnimaChosenInlineKeyboard(){
+    private static InlineKeyboardMarkup prepareAnimaChosenInlineKeyboard() {
         InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
         keyboardMarkup.addRow(new InlineKeyboardButton("\uD83D\uDE3B Хочу позаботиться!").callbackData("/take_care"));
         return keyboardMarkup;
@@ -195,8 +241,9 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
 
     /**
      * Method to get chat ID depending on the type of message (callback, edited message or common message)
-     * @throws NullPointerException If no ID was extracted
+     *
      * @return <code>Long</code>
+     * @throws NullPointerException If no ID was extracted
      */
     private Long extractChatId(Update update) {
         try {
@@ -212,10 +259,12 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
             throw new RuntimeException();
         }
     }
+
     /**
      * Method to get text of the message depending on the type of message (callback, edited message or common message)
-     * @throws NullPointerException  If no message text was extracted
+     *
      * @return <code>String</code>
+     * @throws NullPointerException If no message text was extracted
      */
     private String extractMessage(Update update, Long chatId) {
         try {
