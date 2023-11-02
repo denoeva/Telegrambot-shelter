@@ -1,9 +1,6 @@
 package pro.sky.telegrambot.shelter.model;
 
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
+import javax.persistence.*;
 import java.util.Objects;
 
 /** Class to store information about users
@@ -18,6 +15,9 @@ public class Users {
     private Long chatId;
     private String phoneNumber;
     private Boolean attached;
+    @OneToOne (cascade = CascadeType.ALL)
+    @JoinColumn(name = "animal_id", referencedColumnName = "id")
+    private Animal animal;
     public Users(){
     }
     public Users(Long id, String name, Long chatId, String phoneNumber, Boolean attached) {
@@ -66,6 +66,14 @@ public class Users {
 
     public void setAttached(Boolean attached) {
         this.attached = attached;
+    }
+
+    public Animal getAnimal() {
+        return animal;
+    }
+
+    public void setAnimal(Animal animal) {
+        this.animal = animal;
     }
 
     @Override
