@@ -49,14 +49,14 @@ public class UserService {
             Users prevUser = findUserByChatId(chatId);
             if (prevUser == null) {
                 user.setChatId(chatId);
-                } else {
-                    user = prevUser;
-                }
+            } else {
+                user = prevUser;
+            }
             user.setName(name);
             user.setPhoneNumber(phone_number);
             saveUser(user);
             sendMessage(chatId, messageText);
-            }
+        }
     }
 
     private void sendMessageReply(long chatId, String messageText) {
@@ -64,6 +64,7 @@ public class UserService {
         sendMess.replyMarkup(new ForceReply());
         telegramBot.execute(sendMess);
     }
+
     private void sendMessage(long chatId, String messageText) {
         SendMessage sendMess = new SendMessage(chatId, messageText);
         telegramBot.execute(sendMess);
@@ -73,7 +74,6 @@ public class UserService {
         String validateName = name.trim();
         Pattern pattern = Pattern.compile("[A-Za-zА-Яа-я\\s]{2,30}");
         Matcher matcher = pattern.matcher(validateName);
-
         if (matcher.matches()) {
             this.name = validateName;
             return true;
@@ -81,6 +81,7 @@ public class UserService {
             return false;
         }
     }
+
     private boolean validateAndSavePhone(String phone) {
         String validatePhone = phone.replaceAll("\\D", "");
         Pattern pattern = Pattern.compile("\\d{10,11}");
@@ -100,6 +101,7 @@ public class UserService {
 
     /**
      * Method returns all requests that were received through the bot and recorded in the user table in the database.
+     *
      * @return Collection
      */
     public Collection<Users> getAllOrders() {
@@ -108,6 +110,7 @@ public class UserService {
 
     /**
      * Method to find User by chat id.
+     *
      * @param chatId
      * @return User
      */
