@@ -20,6 +20,7 @@ import pro.sky.telegrambot.shelter.model.Users;
 import pro.sky.telegrambot.shelter.repository.AnimalRepository;
 import pro.sky.telegrambot.shelter.repository.PhotoRepository;
 import pro.sky.telegrambot.shelter.repository.UserRepository;
+import pro.sky.telegrambot.shelter.service.UserService;
 
 
 import javax.annotation.PostConstruct;
@@ -49,12 +50,13 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private UserService userService;
+
     @PostConstruct
     public void init() {
         telegramBot.setUpdatesListener(this);
     }
-
-    private final UserService userService;
 
     public TelegramBotUpdatesListener(UserService userService, TelegramBot telegramBot) {
         this.userService = userService;
