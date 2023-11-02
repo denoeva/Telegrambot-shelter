@@ -7,16 +7,20 @@ import com.pengrad.telegrambot.model.request.InlineKeyboardButton;
 import com.pengrad.telegrambot.model.request.InlineKeyboardMarkup;
 import com.pengrad.telegrambot.request.SendMessage;
 import com.pengrad.telegrambot.request.SendPhoto;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import pro.sky.telegrambot.shelter.exceptions.AnimalNotFoundException;
 import pro.sky.telegrambot.shelter.exceptions.PhotoNotFoundException;
 import pro.sky.telegrambot.shelter.model.Animal;
 import pro.sky.telegrambot.shelter.model.Photo;
+import pro.sky.telegrambot.shelter.model.Users;
 import pro.sky.telegrambot.shelter.repository.AnimalRepository;
 import pro.sky.telegrambot.shelter.repository.PhotoRepository;
-import pro.sky.telegrambot.shelter.service.UserService;
+import pro.sky.telegrambot.shelter.repository.UserRepository;
+
 
 import javax.annotation.PostConstruct;
 import java.time.format.DateTimeFormatter;
@@ -41,6 +45,9 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
 
     @Autowired
     private PhotoRepository photoRepository;
+
+    @Autowired
+    private UserRepository userRepository;
 
     @PostConstruct
     public void init() {
@@ -120,7 +127,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                     telegramBot.execute(animals);
                     break;
                 case "/cats":
-                    animalRepository.findAll().stream().filter(animal -> animal.getTypeOfAnimal().equals(Animal.TypeOfAnimal.CAT)).forEach(
+                    animalRepository.findAnimalsByAttachedFalse().stream().filter(animal -> animal.getTypeOfAnimal().equals(Animal.TypeOfAnimal.CAT)).forEach(
                             animal -> {
                                 Photo animalPhoto = photoRepository.findFirstByAnimal(animal).orElseThrow(PhotoNotFoundException::new);
                                 SendPhoto photo = new SendPhoto(chatId, animalPhoto.getData()).caption(prepareAnimalForBot(animal)).replyMarkup(prepareAnimaChosenInlineKeyboard());
@@ -129,7 +136,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                     );
                     break;
                 case "/dogs":
-                    animalRepository.findAll().stream().filter(animal -> animal.getTypeOfAnimal().equals(Animal.TypeOfAnimal.DOG)).forEach(
+                    animalRepository.findAnimalsByAttachedFalse().stream().filter(animal -> animal.getTypeOfAnimal().equals(Animal.TypeOfAnimal.DOG)).forEach(
                             animal -> {
                                 Photo animalPhoto = photoRepository.findFirstByAnimal(animal).orElseThrow(PhotoNotFoundException::new);
                                 SendPhoto photo = new SendPhoto(chatId, animalPhoto.getData()).caption(prepareAnimalForBot(animal)).replyMarkup(prepareAnimaChosenInlineKeyboard());
@@ -161,6 +168,26 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                         userService.saveContactInfo(chatId, SAVE, userRequest);
                     }
                     break;
+                case "/report":
+                    SendMessage report = new SendMessage(chatId, REPORT_FORM);
+                    telegramBot.execute(report);
+                    break;
+                case "/take_care":
+                    String animalName = update.callbackQuery().message().caption().lines().filter(line -> line.startsWith("Имя")).map(line -> StringUtils.removeStart(line, "Имя: ")).findFirst().orElseThrow(AnimalNotFoundException::new);
+                    Animal animalToAttach = animalRepository.findAnimalByName(animalName);
+                    Users userToAttach = userRepository.findUserByChatId(chatId);
+                    animalToAttach.setAttached(true);
+                    animalToAttach.setUser(userToAttach);
+                    userToAttach.setAnimal(animalToAttach);
+                    animalRepository.save(animalToAttach);
+                    userRepository.save(userToAttach);
+                    SendMessage attached = new SendMessage(chatId, INFO_AFTER_ATTACHMENT);
+                    telegramBot.execute(attached);
+                    break;
+                case "/help":
+                    SendMessage help = new SendMessage(chatId, HELP);
+                    telegramBot.execute(help);
+                    break;
                 default:
             }
         });
@@ -188,7 +215,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
         InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
         keyboardMarkup.addRow(new InlineKeyboardButton("ℹ\uFE0F Информация").callbackData("/info"), new InlineKeyboardButton("\uD83D\uDC36 Животные").callbackData("/animals"));
         keyboardMarkup.addRow(new InlineKeyboardButton("\uD83D\uDCD5 Правила").callbackData("/rules"), new InlineKeyboardButton("\u2753 Позвать волонтера").callbackData("/help"));
-        keyboardMarkup.addRow(new InlineKeyboardButton("\uD83D\uDD8B Принять контакты").callbackData("/save_user"));
+        keyboardMarkup.addRow(new InlineKeyboardButton("\uD83D\uDD8B Принять контакты").callbackData("/save_user"), new InlineKeyboardButton("\uD83D\uDDD2 Сдать отчет").callbackData("/report"));
         return keyboardMarkup;
     }
 

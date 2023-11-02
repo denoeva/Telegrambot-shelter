@@ -29,6 +29,21 @@ public class AnimalService {
         logger.info("Was invoked method for getById animal");
         return animalRepository.findById(id).orElseThrow(AnimalNotFoundException::new);
     }
+    public Animal update(Long id, Animal animal){
+        logger.info("Was invoked method for update animal");
+        Animal existingAnimal = animalRepository.findById(id)
+                .orElseThrow(AnimalNotFoundException::new);
+        existingAnimal.setTypeOfAnimal(animal.getTypeOfAnimal());
+        existingAnimal.setName(animal.getName());
+        existingAnimal.setBreed(animal.getBreed());
+        existingAnimal.setGender(animal.getGender());
+        existingAnimal.setColor(animal.getColor());
+        existingAnimal.setDOB(animal.getDOB());
+        existingAnimal.setHealth(animal.getHealth());
+        existingAnimal.setCharacteristic(animal.getCharacteristic());
+        existingAnimal.setAttached(animal.getAttached());
+        return animalRepository.save(existingAnimal);
+    }
     @Transactional
     public void delete(Long id){
         logger.info("Was invoked method for delete animal");

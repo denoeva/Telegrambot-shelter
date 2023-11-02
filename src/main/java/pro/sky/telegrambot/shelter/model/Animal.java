@@ -1,5 +1,7 @@
 package pro.sky.telegrambot.shelter.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import javax.persistence.*;
 import java.time.LocalDate;
 import java.util.Objects;
@@ -22,6 +24,9 @@ public class Animal {
     private String health;
     private String characteristic;
     private Boolean attached;
+    @OneToOne(mappedBy = "animal")
+    @JsonIgnore
+    private Users user;
 
     public Animal(){
     }
@@ -116,6 +121,14 @@ public class Animal {
 
     public void setAttached(Boolean attached) {
         this.attached = attached;
+    }
+
+    public Users getUser() {
+        return user;
+    }
+
+    public void setUser(Users user) {
+        this.user = user;
     }
 
     @Override
