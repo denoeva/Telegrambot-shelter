@@ -145,6 +145,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                                 telegramBot.execute(photo);
                             }
                     );
+                    break;
                 case "/save_user":
                     SendMessage userName = new SendMessage(chatId, NAME);
                     telegramBot.execute(userName);
