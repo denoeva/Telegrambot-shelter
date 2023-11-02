@@ -126,7 +126,12 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                                 telegramBot.execute(photo);
                             }
                     );
-                default:
+                    break;
+                case "/help":
+                    SendMessage help = new SendMessage(chatId, HELP);
+                    telegramBot.execute(help);
+                    break;
+                    default:
             }
         });
         return UpdatesListener.CONFIRMED_UPDATES_ALL;
