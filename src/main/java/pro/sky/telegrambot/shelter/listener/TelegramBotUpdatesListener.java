@@ -22,13 +22,11 @@ import pro.sky.telegrambot.shelter.repository.AnimalRepository;
 import pro.sky.telegrambot.shelter.repository.PhotoRepository;
 import pro.sky.telegrambot.shelter.repository.UserRepository;
 
-
 import javax.annotation.PostConstruct;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.regex.Pattern;
 import java.util.regex.Matcher;
-
+import java.util.regex.Pattern;
 
 import static pro.sky.telegrambot.shelter.model.Info.*;
 
@@ -140,21 +138,32 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                     break;
                 case "/cats":
                     Long finalChatId1 = chatId;
-                    animalRepository.findAnimalsByAttachedFalse().stream().filter(animal -> animal.getTypeOfAnimal().equals(Animal.TypeOfAnimal.CAT)).forEach(
+                    animalRepository.findAnimalsByAttachedFalseAndTypeOfAnimal(Animal.TypeOfAnimal.CAT).stream().forEach(
                             animal -> {
-                                Photo animalPhoto = photoRepository.findFirstByAnimal(animal).orElseThrow(PhotoNotFoundException::new);
-                                SendPhoto photo = new SendPhoto(finalChatId1, animalPhoto.getData()).caption(prepareAnimalForBot(animal)).replyMarkup(prepareAnimaChosenInlineKeyboard());
-                                telegramBot.execute(photo);
+                                try {
+                                    Photo animalPhoto = photoRepository.findFirstByAnimal(animal).orElseThrow(PhotoNotFoundException::new);
+                                    SendPhoto photo = new SendPhoto(finalChatId1, animalPhoto.getData()).caption(prepareAnimalForBot(animal)).replyMarkup(prepareAnimaChosenInlineKeyboard());
+                                    telegramBot.execute(photo);
+                                } catch (PhotoNotFoundException ignored) {
+                                    SendMessage messageWithOutPhoto = new SendMessage(finalChatId1, prepareAnimalForBot(animal)).replyMarkup(prepareAnimaChosenInlineKeyboard());
+                                    telegramBot.execute(messageWithOutPhoto);
+                                }
+
                             }
                     );
                     break;
                 case "/dogs":
                     Long finalChatId = chatId;
-                    animalRepository.findAnimalsByAttachedFalse().stream().filter(animal -> animal.getTypeOfAnimal().equals(Animal.TypeOfAnimal.DOG)).forEach(
+                    animalRepository.findAnimalsByAttachedFalseAndTypeOfAnimal(Animal.TypeOfAnimal.DOG).stream().forEach(
                             animal -> {
-                                Photo animalPhoto = photoRepository.findFirstByAnimal(animal).orElseThrow(PhotoNotFoundException::new);
-                                SendPhoto photo = new SendPhoto(finalChatId, animalPhoto.getData()).caption(prepareAnimalForBot(animal)).replyMarkup(prepareAnimaChosenInlineKeyboard());
-                                telegramBot.execute(photo);
+                                try {
+                                    Photo animalPhoto = photoRepository.findFirstByAnimal(animal).orElseThrow(PhotoNotFoundException::new);
+                                    SendPhoto photo = new SendPhoto(finalChatId, animalPhoto.getData()).caption(prepareAnimalForBot(animal)).replyMarkup(prepareAnimaChosenInlineKeyboard());
+                                    telegramBot.execute(photo);
+                                } catch (PhotoNotFoundException ignored) {
+                                    SendMessage messageWithOutPhoto = new SendMessage(finalChatId, prepareAnimalForBot(animal)).replyMarkup(prepareAnimaChosenInlineKeyboard());
+                                    telegramBot.execute(messageWithOutPhoto);
+                                }
                             }
                     );
                     break;
