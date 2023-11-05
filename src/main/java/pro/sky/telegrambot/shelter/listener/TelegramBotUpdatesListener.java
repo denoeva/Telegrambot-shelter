@@ -21,7 +21,6 @@ import pro.sky.telegrambot.shelter.model.Users;
 import pro.sky.telegrambot.shelter.repository.AnimalRepository;
 import pro.sky.telegrambot.shelter.repository.PhotoRepository;
 import pro.sky.telegrambot.shelter.repository.UserRepository;
-import pro.sky.telegrambot.shelter.service.UserService;
 
 
 import javax.annotation.PostConstruct;
@@ -40,7 +39,8 @@ import static pro.sky.telegrambot.shelter.model.Info.*;
 public class TelegramBotUpdatesListener implements UpdatesListener {
 
     private final Logger logger = LoggerFactory.getLogger(TelegramBotUpdatesListener.class);
-    private static Pattern PATTERN = Pattern.compile("(\\d{11} \\s+(.*))");
+    private static Pattern PATTERN = Pattern.compile("(\\d{11})\\s+(.*)");
+    private boolean nextUpdateIsUserContacts = false;
 
     @Autowired
     private TelegramBot telegramBot;
@@ -54,17 +54,9 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
     @Autowired
     private UserRepository userRepository;
 
-    @Autowired
-    private UserService userService;
-
     @PostConstruct
     public void init() {
         telegramBot.setUpdatesListener(this);
-    }
-
-    public TelegramBotUpdatesListener(UserService userService, TelegramBot telegramBot) {
-        this.userService = userService;
-        this.telegramBot = telegramBot;
     }
 
     /**
@@ -79,6 +71,20 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
             logger.info("Processing update: {}", update);
             Long chatId = extractChatId(update);
             String message = extractMessage(update, chatId);
+            if (nextUpdateIsUserContacts) {
+                nextUpdateIsUserContacts = false;
+                Matcher matcher = PATTERN.matcher(message);
+                if (matcher.matches()) {
+                    String phoneNumber = matcher.group(1);
+                    String name = matcher.group(2);
+                    Users users = new Users();
+                    users.setChatId(chatId);
+                    users.setPhoneNumber(phoneNumber);
+                    users.setName(name);
+                    userRepository.save(users);
+                    sendMessageInfoSave(chatId, "Ваши контакты записаны.");
+                }
+            }
             switch (message) {
                 case "/start":
                     SendMessage sendMessage = new SendMessage(chatId, WELCOME_MESSAGE).replyMarkup(prepareStartingInlineKeyBoard());
@@ -153,22 +159,8 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                     );
                     break;
                 case "/save_user":
-                    Matcher matcher = PATTERN.matcher(message);
-                    sendContactTemplateMessage(chatId,"Добрый день. Укажите контакты в формате:\n89215552211 Иван");
-                    if (matcher.matches()) {
-                        String phoneNumber = matcher.group(1);
-                        String name = matcher.group(2);
-                        Users users = new Users();
-                        users.setChatId(chatId);
-                        users.setPhoneNumber(phoneNumber);
-                        users.setName(name);
-                        userRepository.save(users);
-                        sendMessageInfoSave(chatId, "Ваши контакты записаны.");
-                    }
-                    break;
-                case "/report":
-                    SendMessage report = new SendMessage(chatId, REPORT_FORM);
-                    telegramBot.execute(report);
+                    sendContactTemplateMessage(chatId,"Укажите контакты в формате:\n89225554433 Иван");
+                    nextUpdateIsUserContacts = true;
                     break;
                 case "/take_care":
                     String animalName = update.callbackQuery().message().caption().lines().filter(line -> line.startsWith("Имя")).map(line -> StringUtils.removeStart(line, "Имя: ")).findFirst().orElseThrow(AnimalNotFoundException::new);
