@@ -21,6 +21,7 @@ import pro.sky.telegrambot.shelter.model.Users;
 import pro.sky.telegrambot.shelter.repository.AnimalRepository;
 import pro.sky.telegrambot.shelter.repository.PhotoRepository;
 import pro.sky.telegrambot.shelter.repository.UserRepository;
+import pro.sky.telegrambot.shelter.service.UserService;
 
 
 import javax.annotation.PostConstruct;
@@ -53,9 +54,17 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private UserService userService;
+
     @PostConstruct
     public void init() {
         telegramBot.setUpdatesListener(this);
+    }
+
+    public TelegramBotUpdatesListener(UserService userService, TelegramBot telegramBot) {
+        this.userService = userService;
+        this.telegramBot = telegramBot;
     }
 
     /**
@@ -142,6 +151,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                                 telegramBot.execute(photo);
                             }
                     );
+                    break;
                 case "/save_user":
                     Matcher matcher = PATTERN.matcher(message);
                     sendContactTemplateMessage(chatId,"Добрый день. Укажите контакты в формате:\n89215552211 Иван");
