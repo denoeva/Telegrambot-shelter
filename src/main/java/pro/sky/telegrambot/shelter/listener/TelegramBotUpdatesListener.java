@@ -7,6 +7,7 @@ import com.pengrad.telegrambot.model.request.InlineKeyboardButton;
 import com.pengrad.telegrambot.model.request.InlineKeyboardMarkup;
 import com.pengrad.telegrambot.request.SendMessage;
 import com.pengrad.telegrambot.request.SendPhoto;
+import com.pengrad.telegrambot.response.SendResponse;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,9 +27,11 @@ import pro.sky.telegrambot.shelter.service.UserService;
 import javax.annotation.PostConstruct;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
+
 
 import static pro.sky.telegrambot.shelter.model.Info.*;
-import static pro.sky.telegrambot.shelter.model.SaveUserContacts.*;
 
 /**
  * Class to process all incoming messages from Telegram
@@ -37,6 +40,7 @@ import static pro.sky.telegrambot.shelter.model.SaveUserContacts.*;
 public class TelegramBotUpdatesListener implements UpdatesListener {
 
     private final Logger logger = LoggerFactory.getLogger(TelegramBotUpdatesListener.class);
+    private static Pattern PATTERN = Pattern.compile("(\\d{11} \\s+(.*))");
 
     @Autowired
     private TelegramBot telegramBot;
@@ -129,46 +133,37 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                     telegramBot.execute(animals);
                     break;
                 case "/cats":
+                    Long finalChatId1 = chatId;
                     animalRepository.findAnimalsByAttachedFalse().stream().filter(animal -> animal.getTypeOfAnimal().equals(Animal.TypeOfAnimal.CAT)).forEach(
                             animal -> {
                                 Photo animalPhoto = photoRepository.findFirstByAnimal(animal).orElseThrow(PhotoNotFoundException::new);
-                                SendPhoto photo = new SendPhoto(chatId, animalPhoto.getData()).caption(prepareAnimalForBot(animal)).replyMarkup(prepareAnimaChosenInlineKeyboard());
+                                SendPhoto photo = new SendPhoto(finalChatId1, animalPhoto.getData()).caption(prepareAnimalForBot(animal)).replyMarkup(prepareAnimaChosenInlineKeyboard());
                                 telegramBot.execute(photo);
                             }
                     );
                     break;
                 case "/dogs":
+                    Long finalChatId = chatId;
                     animalRepository.findAnimalsByAttachedFalse().stream().filter(animal -> animal.getTypeOfAnimal().equals(Animal.TypeOfAnimal.DOG)).forEach(
                             animal -> {
                                 Photo animalPhoto = photoRepository.findFirstByAnimal(animal).orElseThrow(PhotoNotFoundException::new);
-                                SendPhoto photo = new SendPhoto(chatId, animalPhoto.getData()).caption(prepareAnimalForBot(animal)).replyMarkup(prepareAnimaChosenInlineKeyboard());
+                                SendPhoto photo = new SendPhoto(finalChatId, animalPhoto.getData()).caption(prepareAnimalForBot(animal)).replyMarkup(prepareAnimaChosenInlineKeyboard());
                                 telegramBot.execute(photo);
                             }
                     );
                     break;
                 case "/save_user":
-                    SendMessage userName = new SendMessage(chatId, NAME);
-                    telegramBot.execute(userName);
-                    if (update.message() != null) {
-                        String userRequest = update.message().text();
-                        String replyMessage = update.message().replyToMessage().text();
-                        if (update.message().replyToMessage() != null &&
-                                !update.message().replyToMessage().text().isEmpty()) {
-                            if (replyMessage.equals(NAME) || replyMessage.equals(NAME_AGAIN)) {
-                                userService.saveContactInfo(chatId, NAME, userRequest);
-                            }
-                        }
-                        SendMessage userPhone = new SendMessage(chatId, PHONE);
-                        telegramBot.execute(userPhone);
-                        if (update.message() != null) {
-                            if (update.message().replyToMessage() != null &&
-                                    !update.message().replyToMessage().text().isEmpty()) {
-                                if (replyMessage.equals(PHONE) || replyMessage.equals(PHONE_AGAIN)) {
-                                    userService.saveContactInfo(chatId, PHONE, userRequest);
-                                }
-                            }
-                        }
-                        userService.saveContactInfo(chatId, SAVE, userRequest);
+                    Matcher matcher = PATTERN.matcher(message);
+                    sendContactTemplateMessage(chatId,"Добрый день. Укажите контакты в формате:\n89215552211 Иван");
+                    if (matcher.matches()) {
+                        String phoneNumber = matcher.group(1);
+                        String name = matcher.group(2);
+                        Users users = new Users();
+                        users.setChatId(chatId);
+                        users.setPhoneNumber(phoneNumber);
+                        users.setName(name);
+                        userRepository.save(users);
+                        sendMessageInfoSave(chatId, "Ваши контакты записаны.");
                     }
                     break;
                 case "/report":
@@ -309,6 +304,16 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
             logger.error("Message body is null");
             throw new RuntimeException();
         }
+    }
+
+    private SendResponse sendContactTemplateMessage(Long chatId, String message) {
+        SendMessage send = new SendMessage(chatId, message);
+        return telegramBot.execute(send);
+    }
+
+    private SendResponse sendMessageInfoSave(Long chatId, String message) {
+        SendMessage send = new SendMessage(chatId, message);
+        return telegramBot.execute(send);
     }
 
 }

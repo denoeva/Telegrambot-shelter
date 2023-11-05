@@ -4,6 +4,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import pro.sky.telegrambot.shelter.model.Users;
 
 import java.util.Collection;
+import java.util.List;
 
 /**
  * Class to manage database transactions with table users
@@ -11,5 +12,6 @@ import java.util.Collection;
  */
 public interface UserRepository extends JpaRepository<Users, Long> {
     Users findUserByChatId(Long chatId);
-    Collection<Users> findUsersByName(String name);
+    List<Users> findAllByName(String name);
+
 }
