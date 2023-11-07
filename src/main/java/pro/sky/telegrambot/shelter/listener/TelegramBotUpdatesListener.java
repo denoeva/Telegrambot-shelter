@@ -74,7 +74,10 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
             if (nextUpdateIsUserContacts) {
                 nextUpdateIsUserContacts = false;
                 Matcher matcher = PATTERN.matcher(message);
-                if (matcher.matches()) {
+                if (!matcher.matches()) {
+                    sendMessageInfoSave(chatId,"\u2753\u2753\u2753\nВаши данные некорректны,\nсначала выберите раздел:\n" +
+                            "\uD83D\uDD8B Принять контакты\nЗатем повторите согласно образцу:\n(номер из 11 цифр)пробел(имя)");
+                } else if (matcher.matches()){
                     String phoneNumber = matcher.group(1);
                     String name = matcher.group(2);
                     Users users = new Users();
@@ -82,7 +85,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                     users.setPhoneNumber(phoneNumber);
                     users.setName(name);
                     userRepository.save(users);
-                    sendMessageInfoSave(chatId, "Ваши контакты записаны.");
+                    sendMessageInfoSave(chatId,"\uD83D\uDD8B Ваши контакты сохранены");
                 }
             }
             switch (message) {
