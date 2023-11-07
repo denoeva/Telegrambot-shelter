@@ -5,3 +5,5 @@ databaseChangeLog:
       file: liquibase/scripts/addColumnsToUserAndAnimal.sql
   - include:
       file: liquibase/scripts/addTableReport.sql
+  - include:
+      file: liquibase/scripts/addReportPhotoTable.sql
