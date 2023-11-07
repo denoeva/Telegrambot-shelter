@@ -3,3 +3,5 @@ databaseChangeLog:
       file: liquibase/scripts/shelterTables.sql
   - include:
       file: liquibase/scripts/addColumnsToUserAndAnimal.sql
+  - include:
+      file: liquibase/scripts/addTableReport.sql

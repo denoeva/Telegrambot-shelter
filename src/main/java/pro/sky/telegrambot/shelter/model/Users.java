@@ -1,6 +1,9 @@
 package pro.sky.telegrambot.shelter.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import javax.persistence.*;
+import java.util.List;
 import java.util.Objects;
 
 /** Class to store information about users
@@ -20,6 +23,7 @@ public class Users {
     private Animal animal;
     public Users(){
     }
+
     public Users(Long id, String name, Long chatId, String phoneNumber, Boolean attached) {
         this.id = id;
         this.name = name;
