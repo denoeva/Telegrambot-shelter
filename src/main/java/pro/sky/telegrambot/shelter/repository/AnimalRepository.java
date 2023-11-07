@@ -10,7 +10,6 @@ import java.util.List;
  * @version $Revision: 1 $
  */
 public interface AnimalRepository extends JpaRepository<Animal, Long> {
-
     List<Animal> findAnimalsByAttachedFalseAndTypeOfAnimal(Animal.TypeOfAnimal type);
     Animal findAnimalByName(String name);
 

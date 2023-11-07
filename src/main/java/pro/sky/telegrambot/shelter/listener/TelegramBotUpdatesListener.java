@@ -18,6 +18,7 @@ import pro.sky.telegrambot.shelter.exceptions.PhotoNotFoundException;
 import pro.sky.telegrambot.shelter.model.Animal;
 import pro.sky.telegrambot.shelter.model.Photo;
 import pro.sky.telegrambot.shelter.model.Users;
+import pro.sky.telegrambot.shelter.model.Volunteer;
 import pro.sky.telegrambot.shelter.repository.AnimalRepository;
 import pro.sky.telegrambot.shelter.repository.PhotoRepository;
 import pro.sky.telegrambot.shelter.repository.UserRepository;
@@ -39,6 +40,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
     private final Logger logger = LoggerFactory.getLogger(TelegramBotUpdatesListener.class);
     private static Pattern PATTERN = Pattern.compile("(\\d{11})\\s+(.*)");
     private boolean nextUpdateIsUserContacts = false;
+    private boolean nextUpdateIsHelpVolunteer = false;
 
     @Autowired
     private TelegramBot telegramBot;
@@ -73,8 +75,8 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                 nextUpdateIsUserContacts = false;
                 Matcher matcher = PATTERN.matcher(message);
                 if (!matcher.matches()) {
-                    sendMessageInfoSave(chatId,"\u2753\u2753\u2753\nВаши данные некорректны,\nсначала выберите раздел:\n" +
-                            "\uD83D\uDD8B Принять контакты\nЗатем повторите согласно образцу:\n(номер из 11 цифр)пробел(имя)");
+                    SendMessage ConflictSave = new SendMessage(chatId,CONFLICT_USER_CONTACT);
+                    telegramBot.execute(ConflictSave);
                 } else if (matcher.matches()){
                     String phoneNumber = matcher.group(1);
                     String name = matcher.group(2);
@@ -83,8 +85,13 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                     users.setPhoneNumber(phoneNumber);
                     users.setName(name);
                     userRepository.save(users);
-                    sendMessageInfoSave(chatId,"\uD83D\uDD8B Ваши контакты сохранены");
+                    SendMessage CompleteSave = new SendMessage(chatId,COMPLETE_USER_CONTACT);
+                    telegramBot.execute(CompleteSave);
                 }
+            }
+            if (nextUpdateIsHelpVolunteer) {
+                nextUpdateIsHelpVolunteer = false;
+                //...
             }
             switch (message) {
                 case "/start":
@@ -171,8 +178,9 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                     );
                     break;
                 case "/save_user":
-                    sendContactTemplateMessage(chatId,"Укажите контакты в формате:\n89225554433 Иван");
+                    SendMessage ContactTemplate = new SendMessage(chatId,USER_CONTACT);
                     nextUpdateIsUserContacts = true;
+                    telegramBot.execute(ContactTemplate);
                     break;
                 case "/take_care":
                     String animalName = update.callbackQuery().message().caption().lines().filter(line -> line.startsWith("Имя")).map(line -> StringUtils.removeStart(line, "Имя: ")).findFirst().orElseThrow(AnimalNotFoundException::new);
@@ -187,8 +195,9 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                     telegramBot.execute(attached);
                     break;
                 case "/help":
-                    SendMessage help = new SendMessage(chatId, HELP);
-                    telegramBot.execute(help);
+                    SendMessage HelpVolunteer = new SendMessage(chatId, HELP);
+                    nextUpdateIsHelpVolunteer = true;
+                    telegramBot.execute(HelpVolunteer);
                     break;
                 default:
             }
@@ -309,15 +318,4 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
             throw new RuntimeException();
         }
     }
-
-    private SendResponse sendContactTemplateMessage(Long chatId, String message) {
-        SendMessage send = new SendMessage(chatId, message);
-        return telegramBot.execute(send);
-    }
-
-    private SendResponse sendMessageInfoSave(Long chatId, String message) {
-        SendMessage send = new SendMessage(chatId, message);
-        return telegramBot.execute(send);
-    }
-
 }

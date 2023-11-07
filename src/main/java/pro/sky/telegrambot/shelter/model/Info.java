@@ -1,4 +1,7 @@
 package pro.sky.telegrambot.shelter.model;
+
+import javax.swing.plaf.PanelUI;
+
 /**
  * Class contains all constants with information about shelter and animals
  *  @version $Revision: 1 $
@@ -184,4 +187,9 @@ public final class Info {
                 "2. Общее самочувствие и привыкание к новому месту.\n" +
                 "3. Изменение в поведении: отказ от старых привычек, приобретение новых.\n" +
                 "Обязательно прикрепи фото животного, и не забывай, что отчет нужно присылать до 21:00.";
+        public static final String USER_CONTACT = "Укажите контакты в формате:\n89225554433 Иван";
+        public static final String COMPLETE_USER_CONTACT = "\uD83D\uDD8B Ваши контакты сохранены";
+        public static final String CONFLICT_USER_CONTACT = "\u2753\u2753\u2753\nВаши данные некорректны,\nсначала выберите раздел:\n" +
+                "\uD83D\uDD8B Принять контакты\nЗатем повторите согласно образцу:\n(номер из 11 цифр)пробел(имя)";
+
 }
