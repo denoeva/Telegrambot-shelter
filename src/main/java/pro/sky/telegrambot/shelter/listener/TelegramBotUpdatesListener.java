@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import pro.sky.telegrambot.shelter.exceptions.AnimalNotFoundException;
 import pro.sky.telegrambot.shelter.exceptions.PhotoNotFoundException;
+import pro.sky.telegrambot.shelter.exceptions.VolunteerNotFoundException;
 import pro.sky.telegrambot.shelter.model.Animal;
 import pro.sky.telegrambot.shelter.model.Photo;
 import pro.sky.telegrambot.shelter.model.Users;
@@ -22,6 +23,7 @@ import pro.sky.telegrambot.shelter.model.Volunteer;
 import pro.sky.telegrambot.shelter.repository.AnimalRepository;
 import pro.sky.telegrambot.shelter.repository.PhotoRepository;
 import pro.sky.telegrambot.shelter.repository.UserRepository;
+import pro.sky.telegrambot.shelter.repository.VolunteerRepository;
 
 import javax.annotation.PostConstruct;
 import java.time.format.DateTimeFormatter;
@@ -39,6 +41,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
 
     private final Logger logger = LoggerFactory.getLogger(TelegramBotUpdatesListener.class);
     private static Pattern PATTERN = Pattern.compile("(\\d{11})\\s+(.*)");
+    private static final Pattern HELP_VOLUNTEER = Pattern.compile("(@.*)\\n+(.*)");
     private boolean nextUpdateIsUserContacts = false;
     private boolean nextUpdateIsHelpVolunteer = false;
 
@@ -54,6 +57,8 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private VolunteerRepository volunteerRepository;
     @PostConstruct
     public void init() {
         telegramBot.setUpdatesListener(this);
@@ -91,7 +96,19 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
             }
             if (nextUpdateIsHelpVolunteer) {
                 nextUpdateIsHelpVolunteer = false;
-                //...
+                Matcher matcher = HELP_VOLUNTEER.matcher(message);
+                if (matcher.matches()){
+                    String userName = matcher.group(1);
+                    String problem = matcher.group(2);
+                    Volunteer volunteer = volunteerRepository.findAll().stream().findAny().orElseThrow(VolunteerNotFoundException::new);
+                    SendMessage helpMessage = new SendMessage(volunteer.getChatId(),"\u2753Нужна помощь\u2753\nПользователю: " + userName + ",\nпо вопросу: " + problem);
+                    SendMessage completeHelp = new SendMessage(chatId,HELP_END);
+                    telegramBot.execute(helpMessage);
+                    telegramBot.execute(completeHelp);
+                } else if (!matcher.matches()) {
+                    SendMessage conflictHelpMessage = new SendMessage(chatId, HELP_CONFLICT);
+                    telegramBot.execute(conflictHelpMessage);
+                }
             }
             switch (message) {
                 case "/start":
@@ -195,7 +212,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                     telegramBot.execute(attached);
                     break;
                 case "/help":
-                    SendMessage HelpVolunteer = new SendMessage(chatId, HELP);
+                    SendMessage HelpVolunteer = new SendMessage(chatId, HELP_START);
                     nextUpdateIsHelpVolunteer = true;
                     telegramBot.execute(HelpVolunteer);
                     break;
