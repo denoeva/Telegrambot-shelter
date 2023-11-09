@@ -99,6 +99,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                 //...
             }
             if(report_matcher.matches()) {
+                // Проверяем отчет
                 if (update.message().photo() == null) {
                     telegramBot.execute(new SendMessage(chatId, PHOTO_REQUIRED));
                     return;
@@ -107,6 +108,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                     telegramBot.execute(new SendMessage(chatId, REPORT_INFO_REQUIRED));
                     return;
                 }
+                // Если все ОК, то сохраняем отчет и отписываемся юзеру
                 Report report = new Report();
                 report.setReport(message);
                 report.setDateTime(LocalDateTime.now());
@@ -226,6 +228,10 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                     nextUpdateIsHelpVolunteer = true;
                     telegramBot.execute(HelpVolunteer);
                     break;
+                case "/report":
+                    SendMessage reportForm = new SendMessage(chatId, REPORT_FORM);
+                    telegramBot.execute(reportForm);
+                    break;
                 case "/accept_report":
                     String reportId = update.callbackQuery().message().text().lines().filter(line -> line.startsWith("Идентификатор")).map(line -> StringUtils.removeStart(line, "Идентификатор отчета: ")).findFirst().orElseThrow();
                     Report reportToUpdate = reportRepository.findById(Long.valueOf(reportId)).orElseThrow(ReportNotFoundException::new);
@@ -255,7 +261,13 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                 "\nОкрас: " + animal.getColor() + "\nДата рождения: " + animal.getDOB().format(DateTimeFormatter.ISO_LOCAL_DATE) +
                 "\nСостояние здоровья: " + animal.getHealth() + "\nХарактер: " + animal.getCharacteristic();
     }
-
+    /**
+     * Method prepares starting inline keyboard
+     *
+     * @param  chatId to extract user and animal name
+     * @param  report to extract report ID and text
+     * @return representation of report to send to volunteer
+     */
     private String prepareReportForVolunteer(Update update, Long chatId, Report report) {
         Users user = userRepository.findUserByChatId(chatId);
         StringBuilder sb = new StringBuilder();
