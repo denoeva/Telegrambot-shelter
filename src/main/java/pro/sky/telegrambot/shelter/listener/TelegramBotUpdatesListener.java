@@ -7,7 +7,6 @@ import com.pengrad.telegrambot.model.request.InlineKeyboardButton;
 import com.pengrad.telegrambot.model.request.InlineKeyboardMarkup;
 import com.pengrad.telegrambot.request.SendMessage;
 import com.pengrad.telegrambot.request.SendPhoto;
-import com.pengrad.telegrambot.response.SendResponse;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -80,7 +79,8 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                 nextUpdateIsUserContacts = false;
                 Matcher matcher = PATTERN.matcher(message);
                 if (!matcher.matches()) {
-                    SendMessage ConflictSave = new SendMessage(chatId,CONFLICT_USER_CONTACT);
+                    SendMessage ConflictSave = new SendMessage(chatId,CONFLICT_USER_CONTACT)
+                            .replyMarkup(ConflictSaveUserInlineKeyboard());
                     telegramBot.execute(ConflictSave);
                 } else if (matcher.matches()){
                     String phoneNumber = matcher.group(1);
@@ -101,12 +101,14 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                     String userName = matcher.group(1);
                     String problem = matcher.group(2);
                     Volunteer volunteer = volunteerRepository.findAll().stream().findAny().orElseThrow(VolunteerNotFoundException::new);
-                    SendMessage helpMessage = new SendMessage(volunteer.getChatId(),"\u2753Нужна помощь\u2753\nПользователю: " + userName + ",\nпо вопросу: " + problem);
+                    SendMessage helpMessage = new SendMessage(volunteer.getChatId(),
+                            "\u2753Нужна помощь\u2753\nПользователю: " + userName + ",\nпо вопросу: " + problem);
                     SendMessage completeHelp = new SendMessage(chatId,HELP_END);
                     telegramBot.execute(helpMessage);
                     telegramBot.execute(completeHelp);
                 } else if (!matcher.matches()) {
-                    SendMessage conflictHelpMessage = new SendMessage(chatId, HELP_CONFLICT);
+                    SendMessage conflictHelpMessage = new SendMessage(chatId, HELP_CONFLICT)
+                            .replyMarkup(ConflictHelpVolunteerInlineKeyboard());
                     telegramBot.execute(conflictHelpMessage);
                 }
             }
@@ -217,6 +219,8 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                     telegramBot.execute(HelpVolunteer);
                     break;
                 default:
+                    SendMessage defaultMessage = new SendMessage(chatId, DEFAULT_MESSAGE);
+                    telegramBot.execute(defaultMessage);
             }
         });
         return UpdatesListener.CONFIRMED_UPDATES_ALL;
@@ -292,7 +296,27 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
         keyboardMarkup.addRow(new InlineKeyboardButton("\uD83D\uDE3B Хочу позаботиться!").callbackData("/take_care"));
         return keyboardMarkup;
     }
+    /**
+     * The method provides a keyboard in case of an error saving a contact
+     *
+     * @return <code>InlineKeyboardMarkup</code>
+     */
+    private static InlineKeyboardMarkup ConflictSaveUserInlineKeyboard(){
+        InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
+        keyboardMarkup.addRow(new InlineKeyboardButton("\uD83D\uDD8B Принять контакты").callbackData("/save_user"));
+        return keyboardMarkup;
+    }
 
+    /**
+     * The method provides a keyboard in case of an error, a volunteer call
+     *
+     * @return <code>InlineKeyboardMarkup</code>
+     */
+    private static InlineKeyboardMarkup ConflictHelpVolunteerInlineKeyboard(){
+        InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
+        keyboardMarkup.addRow(new InlineKeyboardButton("\u2753 Позвать волонтера").callbackData("/help"));
+        return keyboardMarkup;
+    }
 
     /**
      * Method to get chat ID depending on the type of message (callback, edited message or common message)
