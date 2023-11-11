@@ -11,14 +11,14 @@ public class Report {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long reportId;
     private Long chatId;
-    private String report;
+    private String reportText;
     private LocalDateTime dateTime;
     private boolean checkedByVolunteer;
 
-    public Report(Long reportId, Long chatId, String report, LocalDateTime dateTime, boolean checkedByVolunteer) {
+    public Report() {
         this.reportId = reportId;
         this.chatId = chatId;
-        this.report = report;
+        this.reportText = reportText;
         this.dateTime = dateTime;
         this.checkedByVolunteer = checkedByVolunteer;
     }
@@ -40,11 +40,11 @@ public class Report {
     }
 
     public String getReport() {
-        return report;
+        return reportText;
     }
 
     public void setReport(String report) {
-        this.report = report;
+        this.reportText = report;
     }
 
     public LocalDateTime getDateTime() {
@@ -68,12 +68,12 @@ public class Report {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Report report1 = (Report) o;
-        return checkedByVolunteer == report1.checkedByVolunteer && Objects.equals(reportId, report1.reportId) && Objects.equals(chatId, report1.chatId) && Objects.equals(report, report1.report) && Objects.equals(dateTime, report1.dateTime);
+        return checkedByVolunteer == report1.checkedByVolunteer && Objects.equals(reportId, report1.reportId) && Objects.equals(chatId, report1.chatId) && Objects.equals(reportText, report1.reportText) && Objects.equals(dateTime, report1.dateTime);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(reportId, chatId, report, dateTime, checkedByVolunteer);
+        return Objects.hash(reportId, chatId, reportText, dateTime, checkedByVolunteer);
     }
 
     @Override
@@ -81,7 +81,7 @@ public class Report {
         return "Report{" +
                 "reportId=" + reportId +
                 ", chatId=" + chatId +
-                ", report='" + report + '\'' +
+                ", report='" + reportText + '\'' +
                 ", dateTime=" + dateTime +
                 ", checkedByVolunteer=" + checkedByVolunteer +
                 '}';
