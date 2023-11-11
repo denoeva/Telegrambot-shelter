@@ -14,6 +14,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import pro.sky.telegrambot.shelter.exceptions.AnimalNotFoundException;
 import pro.sky.telegrambot.shelter.exceptions.PhotoNotFoundException;
+import pro.sky.telegrambot.shelter.exceptions.ReportNotFoundException;
+import pro.sky.telegrambot.shelter.exceptions.VolunteerNotFoundException;
+import pro.sky.telegrambot.shelter.model.*;
+import pro.sky.telegrambot.shelter.repository.*;
 import pro.sky.telegrambot.shelter.exceptions.VolunteerNotFoundException;
 import pro.sky.telegrambot.shelter.model.Animal;
 import pro.sky.telegrambot.shelter.model.Photo;
@@ -25,6 +29,7 @@ import pro.sky.telegrambot.shelter.repository.UserRepository;
 import pro.sky.telegrambot.shelter.repository.VolunteerRepository;
 
 import javax.annotation.PostConstruct;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -40,6 +45,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
 
     private final Logger logger = LoggerFactory.getLogger(TelegramBotUpdatesListener.class);
     private static Pattern PATTERN = Pattern.compile("(\\d{11})\\s+(.*)");
+    private static final Pattern REPORT_PATTER = Pattern.compile("^(О|о)тчет(.*)");
     private static final Pattern HELP_VOLUNTEER = Pattern.compile("(@.*)\\n+(.*)");
     private boolean nextUpdateIsUserContacts = false;
     private boolean nextUpdateIsHelpVolunteer = false;
@@ -57,7 +63,13 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
     private UserRepository userRepository;
 
     @Autowired
+    private ReportRepository reportRepository;
+
+    @Autowired
     private VolunteerRepository volunteerRepository;
+
+    private VolunteerRepository volunteerRepository;
+
     @PostConstruct
     public void init() {
         telegramBot.setUpdatesListener(this);
@@ -75,6 +87,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
             logger.info("Processing update: {}", update);
             Long chatId = extractChatId(update);
             String message = extractMessage(update, chatId);
+            Matcher report_matcher = REPORT_PATTER.matcher(message);
             if (nextUpdateIsUserContacts) {
                 nextUpdateIsUserContacts = false;
                 Matcher matcher = PATTERN.matcher(message);
@@ -111,6 +124,30 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                             .replyMarkup(ConflictHelpVolunteerInlineKeyboard());
                     telegramBot.execute(conflictHelpMessage);
                 }
+            }
+            if(report_matcher.matches()) {
+                // Проверяем отчет
+                if (update.message().photo() == null) {
+                    telegramBot.execute(new SendMessage(chatId, PHOTO_REQUIRED));
+                    return;
+                }
+                if (!message.contains("1") || !message.contains("2") || !message.contains("3")) {
+                    telegramBot.execute(new SendMessage(chatId, REPORT_INFO_REQUIRED));
+                    return;
+                }
+                // Если все ОК, то сохраняем отчет и отписываемся юзеру
+                Report report = new Report();
+                report.setReport(message);
+                report.setDateTime(LocalDateTime.now());
+                report.setChatId(chatId);
+                report = reportRepository.save(report);
+                telegramBot.execute(new SendMessage(chatId, REPORT_ACCEPTED_FOR_CHECKING));
+
+                //Ищем в базе волонтера и отправляем ему отчет
+                Volunteer volunteer = volunteerRepository.findAll().stream().findAny().orElseThrow(VolunteerNotFoundException::new);
+                SendMessage reportToVolunteer = new SendMessage(volunteer.getChatId(), NEW_REPORT
+                        + prepareReportForVolunteer(update, chatId, report)).replyMarkup(prepareVolunteerInlineKeyboard());
+                telegramBot.execute(reportToVolunteer);
             }
             switch (message) {
                 case "/start":
@@ -218,6 +255,22 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                     nextUpdateIsHelpVolunteer = true;
                     telegramBot.execute(HelpVolunteer);
                     break;
+                case "/report":
+                    SendMessage reportForm = new SendMessage(chatId, REPORT_FORM);
+                    telegramBot.execute(reportForm);
+                    break;
+                case "/accept_report":
+                    String reportId = update.callbackQuery().message().text().lines().filter(line -> line.startsWith("Идентификатор")).map(line -> StringUtils.removeStart(line, "Идентификатор отчета: ")).findFirst().orElseThrow();
+                    Report reportToUpdate = reportRepository.findById(Long.valueOf(reportId)).orElseThrow(ReportNotFoundException::new);
+                    reportToUpdate.setCheckedByVolunteer(true);
+                    reportRepository.save(reportToUpdate);
+                    break;
+                case "/decline_report":
+                    String reportToImproveId = update.callbackQuery().message().text().lines().filter(line -> line.startsWith("Идентификатор")).map(line -> StringUtils.removeStart(line, "Идентификатор отчета: ")).findFirst().orElseThrow();
+                    Report reportToImprove = reportRepository.findById(Long.valueOf(reportToImproveId)).orElseThrow(ReportNotFoundException::new);
+                    SendMessage messageToUser = new SendMessage(reportToImprove.getChatId(), REPORT_REJECTED);
+                    telegramBot.execute(messageToUser);
+                    break;
                 default:
                     SendMessage defaultMessage = new SendMessage(chatId, DEFAULT_MESSAGE);
                     telegramBot.execute(defaultMessage);
@@ -236,6 +289,23 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
         return "Имя: " + animal.getName() + "\nПорода: " + animal.getBreed() + "\nПол: " + animal.getGender() +
                 "\nОкрас: " + animal.getColor() + "\nДата рождения: " + animal.getDOB().format(DateTimeFormatter.ISO_LOCAL_DATE) +
                 "\nСостояние здоровья: " + animal.getHealth() + "\nХарактер: " + animal.getCharacteristic();
+    }
+    /**
+     * Method prepares starting inline keyboard
+     *
+     * @param  chatId to extract user and animal name
+     * @param  report to extract report ID and text
+     * @return representation of report to send to volunteer
+     */
+    private String prepareReportForVolunteer(Update update, Long chatId, Report report) {
+        Users user = userRepository.findUserByChatId(chatId);
+        StringBuilder sb = new StringBuilder();
+        sb.append("\nДата: ").append(report.getDateTime().toString());
+        sb.append("\nОпекун: ").append(user.getName());
+        sb.append("\nЖивотное: ").append(user.getAnimal().getName());
+        sb.append("\nИдентификатор отчета: ").append(report.getReportId());
+        sb.append("\nОтчет: ").append(update.message().caption());
+        return sb.toString();
     }
 
     /**
@@ -308,6 +378,16 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
     }
 
     /**
+     * Method prepares inline keyboard for volunteer to accept or decline user report
+     *
+     * @return <code>InlineKeyboardMarkup</code>
+     */
+    private static InlineKeyboardMarkup prepareVolunteerInlineKeyboard() {
+        InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
+        keyboardMarkup.addRow(new InlineKeyboardButton("\uD83C\uDD97 Принять отчет!").callbackData("/accept_report"), new InlineKeyboardButton("\u274E Отправить на доработку!").callbackData("/decline_report"));
+        return keyboardMarkup;
+    }
+
      * The method provides a keyboard in case of an error, a volunteer call
      *
      * @return <code>InlineKeyboardMarkup</code>
@@ -351,6 +431,8 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                 return update.callbackQuery().data();
             } else if (!(update.editedMessage() == null)) {
                 return update.editedMessage().text();
+            } else if (update.message().caption() != null) {
+                return update.message().caption();
             } else {
                 return update.message().text();
             }

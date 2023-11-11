@@ -1,6 +1,8 @@
 package pro.sky.telegrambot.shelter.model;
 
-import javax.persistence.*;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import java.time.LocalDateTime;
 import java.util.Objects;
@@ -21,6 +23,10 @@ public class Report {
         this.report = report;
         this.dateTime = dateTime;
         this.checkedByVolunteer = checkedByVolunteer;
+    }
+
+    public Report() {
+
     }
 
     public Long getReportId() {
