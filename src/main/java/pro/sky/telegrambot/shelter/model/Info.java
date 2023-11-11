@@ -170,9 +170,10 @@ public final class Info {
                 "\uD83E\uDEAA Оформить пропуск на машину по номеру: +7 999 65 36 647";
 
         public static final String ANIMALS = "В нашем приюте живут как кошки, так и собаки.\nВыберите, с кем вы хотите познакомиться!";
-        public static final String HELP = "1. Укажите свой логин \u260E" + "\n" + "2. Опишите ваш вопрос\u2753 \n" +
-                "\n" +
-                "\uD83D\uDD4A Волонтер с вами свяжется,\nожидайте \uD83D\uDD50";
+        public static final String HELP_START = "\u2753 Чтобы волонтер с вами связался:\n1. Укажите свой логин: @...\n2. (С красной строки)\nОпишите ваш вопрос\u2753\n";
+        public static final String HELP_CONFLICT = "\u2753\u2753\u2753 Возникла ошибка\n(Оформление не соответствует)\n" +
+                "\n1. Сначала выберите раздел:\n       \u2753 Позвать волонтера\n2. Запишите согласно образцу:\n@UserName\n(Новая строка) Ваш вопрос\n";
+        public static final String HELP_END = "\uD83D\uDD4A Волонтер с вами свяжется,\nожидайте \uD83D\uDD50";
         public static final String REPORT_FORM = "Дорогой усыновитель, пожалуйста, пришли отчет в следующей форме:\n" +
                 "Отчет:\n1. Рацион животного.\n" +
                 "2. Общее самочувствие и привыкание к новому месту.\n" +
@@ -209,4 +210,10 @@ public final class Info {
 
         public static final String REPORT_REMINDER = "\uD83D\uDD0E Кажется, мы сегодня не получали от Вас отчет о состоянии животного.\nПожалуйста, пришлите отчет как можно скорее";
 
+                "Обязательно прикрепи фото животного, и не забывай, что отчет нужно присылать до 21:00.";
+        public static final String USER_CONTACT = "\u260E Контактные данные\nУкажите в формате:\n89225554433 Иван";
+        public static final String COMPLETE_USER_CONTACT = "\uD83D\uDD8B Ваши контакты сохранены";
+        public static final String CONFLICT_USER_CONTACT = "\u2753\u2753\u2753 Возникла ошибка\n(Оформление не соответствует)\n" +
+                "\n1. Сначала выберите раздел:\n       \uD83D\uDD8B Принять контакты\n2. Запишите согласно образцу:\n(номер из 11 цифр)пробел(имя)";
+        public static final String DEFAULT_MESSAGE = "Чтобы открыть начальное раскладное меню:\nжмите /start";
 }

@@ -18,6 +18,15 @@ import pro.sky.telegrambot.shelter.exceptions.ReportNotFoundException;
 import pro.sky.telegrambot.shelter.exceptions.VolunteerNotFoundException;
 import pro.sky.telegrambot.shelter.model.*;
 import pro.sky.telegrambot.shelter.repository.*;
+import pro.sky.telegrambot.shelter.exceptions.VolunteerNotFoundException;
+import pro.sky.telegrambot.shelter.model.Animal;
+import pro.sky.telegrambot.shelter.model.Photo;
+import pro.sky.telegrambot.shelter.model.Users;
+import pro.sky.telegrambot.shelter.model.Volunteer;
+import pro.sky.telegrambot.shelter.repository.AnimalRepository;
+import pro.sky.telegrambot.shelter.repository.PhotoRepository;
+import pro.sky.telegrambot.shelter.repository.UserRepository;
+import pro.sky.telegrambot.shelter.repository.VolunteerRepository;
 
 import javax.annotation.PostConstruct;
 import java.time.LocalDateTime;
@@ -37,6 +46,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
     private final Logger logger = LoggerFactory.getLogger(TelegramBotUpdatesListener.class);
     private static Pattern PATTERN = Pattern.compile("(\\d{11})\\s+(.*)");
     private static final Pattern REPORT_PATTER = Pattern.compile("^(О|о)тчет(.*)");
+    private static final Pattern HELP_VOLUNTEER = Pattern.compile("(@.*)\\n+(.*)");
     private boolean nextUpdateIsUserContacts = false;
     private boolean nextUpdateIsHelpVolunteer = false;
 
@@ -56,6 +66,8 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
     private ReportRepository reportRepository;
 
     @Autowired
+    private VolunteerRepository volunteerRepository;
+
     private VolunteerRepository volunteerRepository;
 
     @PostConstruct
@@ -80,7 +92,8 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                 nextUpdateIsUserContacts = false;
                 Matcher matcher = PATTERN.matcher(message);
                 if (!matcher.matches()) {
-                    SendMessage ConflictSave = new SendMessage(chatId,CONFLICT_USER_CONTACT);
+                    SendMessage ConflictSave = new SendMessage(chatId,CONFLICT_USER_CONTACT)
+                            .replyMarkup(ConflictSaveUserInlineKeyboard());
                     telegramBot.execute(ConflictSave);
                 } else if (matcher.matches()){
                     String phoneNumber = matcher.group(1);
@@ -96,7 +109,21 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
             }
             if (nextUpdateIsHelpVolunteer) {
                 nextUpdateIsHelpVolunteer = false;
-                //...
+                Matcher matcher = HELP_VOLUNTEER.matcher(message);
+                if (matcher.matches()){
+                    String userName = matcher.group(1);
+                    String problem = matcher.group(2);
+                    Volunteer volunteer = volunteerRepository.findAll().stream().findAny().orElseThrow(VolunteerNotFoundException::new);
+                    SendMessage helpMessage = new SendMessage(volunteer.getChatId(),
+                            "\u2753Нужна помощь\u2753\nПользователю: " + userName + ",\nпо вопросу: " + problem);
+                    SendMessage completeHelp = new SendMessage(chatId,HELP_END);
+                    telegramBot.execute(helpMessage);
+                    telegramBot.execute(completeHelp);
+                } else if (!matcher.matches()) {
+                    SendMessage conflictHelpMessage = new SendMessage(chatId, HELP_CONFLICT)
+                            .replyMarkup(ConflictHelpVolunteerInlineKeyboard());
+                    telegramBot.execute(conflictHelpMessage);
+                }
             }
             if(report_matcher.matches()) {
                 // Проверяем отчет
@@ -224,7 +251,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                     telegramBot.execute(attached);
                     break;
                 case "/help":
-                    SendMessage HelpVolunteer = new SendMessage(chatId, HELP);
+                    SendMessage HelpVolunteer = new SendMessage(chatId, HELP_START);
                     nextUpdateIsHelpVolunteer = true;
                     telegramBot.execute(HelpVolunteer);
                     break;
@@ -245,6 +272,8 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                     telegramBot.execute(messageToUser);
                     break;
                 default:
+                    SendMessage defaultMessage = new SendMessage(chatId, DEFAULT_MESSAGE);
+                    telegramBot.execute(defaultMessage);
             }
         });
         return UpdatesListener.CONFIRMED_UPDATES_ALL;
@@ -337,6 +366,16 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
         keyboardMarkup.addRow(new InlineKeyboardButton("\uD83D\uDE3B Хочу позаботиться!").callbackData("/take_care"));
         return keyboardMarkup;
     }
+    /**
+     * The method provides a keyboard in case of an error saving a contact
+     *
+     * @return <code>InlineKeyboardMarkup</code>
+     */
+    private static InlineKeyboardMarkup ConflictSaveUserInlineKeyboard(){
+        InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
+        keyboardMarkup.addRow(new InlineKeyboardButton("\uD83D\uDD8B Принять контакты").callbackData("/save_user"));
+        return keyboardMarkup;
+    }
 
     /**
      * Method prepares inline keyboard for volunteer to accept or decline user report
@@ -349,6 +388,15 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
         return keyboardMarkup;
     }
 
+     * The method provides a keyboard in case of an error, a volunteer call
+     *
+     * @return <code>InlineKeyboardMarkup</code>
+     */
+    private static InlineKeyboardMarkup ConflictHelpVolunteerInlineKeyboard(){
+        InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
+        keyboardMarkup.addRow(new InlineKeyboardButton("\u2753 Позвать волонтера").callbackData("/help"));
+        return keyboardMarkup;
+    }
 
     /**
      * Method to get chat ID depending on the type of message (callback, edited message or common message)
