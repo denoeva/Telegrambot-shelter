@@ -27,7 +27,8 @@ public class AnimalController {
         this.photoService = photoService;
     }
     @PostMapping
-    public Animal create(@RequestBody Animal animal){return animalService.create(animal);
+    public Animal create(@RequestBody Animal animal){
+        return animalService.create(animal);
     }
     @PostMapping(value = "/{animalId}/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Long> save(@PathVariable Long animalId, @RequestBody MultipartFile multipartFile){
