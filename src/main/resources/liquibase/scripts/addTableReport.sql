@@ -7,3 +7,7 @@ CREATE TABLE report(
     date_time TIMESTAMP,
     checked_by_volunteer BOOLEAN
 );
+
+-- changeset elena:6
+ALTER TABLE report
+RENAME COLUMN report TO report_text
