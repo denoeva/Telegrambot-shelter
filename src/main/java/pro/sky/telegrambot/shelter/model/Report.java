@@ -17,7 +17,7 @@ public class Report {
     private LocalDateTime dateTime;
     private boolean checkedByVolunteer;
 
-    public Report() {
+    public Report(Long reportId, Long chatId, String reportText, LocalDateTime dateTime, boolean checkedByVolunteer) {
         this.reportId = reportId;
         this.chatId = chatId;
         this.reportText = reportText;
@@ -26,7 +26,6 @@ public class Report {
     }
 
     public Report() {
-
     }
 
     public Long getReportId() {
