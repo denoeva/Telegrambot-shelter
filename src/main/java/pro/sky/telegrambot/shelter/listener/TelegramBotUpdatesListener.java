@@ -18,7 +18,6 @@ import pro.sky.telegrambot.shelter.exceptions.ReportNotFoundException;
 import pro.sky.telegrambot.shelter.exceptions.VolunteerNotFoundException;
 import pro.sky.telegrambot.shelter.model.*;
 import pro.sky.telegrambot.shelter.repository.*;
-import pro.sky.telegrambot.shelter.exceptions.VolunteerNotFoundException;
 import pro.sky.telegrambot.shelter.model.Animal;
 import pro.sky.telegrambot.shelter.model.Photo;
 import pro.sky.telegrambot.shelter.model.Users;
@@ -49,7 +48,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
     private static final Pattern HELP_VOLUNTEER = Pattern.compile("(@.*)\\n+(.*)");
     private boolean nextUpdateIsUserContacts = false;
     private boolean nextUpdateIsHelpVolunteer = false;
-
+    private boolean nextUpdateIsReport = false;
     @Autowired
     private TelegramBot telegramBot;
 
@@ -85,7 +84,34 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
             logger.info("Processing update: {}", update);
             Long chatId = extractChatId(update);
             String message = extractMessage(update, chatId);
-            Matcher report_matcher = REPORT_PATTER.matcher(message);
+            if (nextUpdateIsReport){
+                nextUpdateIsReport = false;
+                Matcher report_matcher = REPORT_PATTER.matcher(message);
+                if(report_matcher.matches()) {
+                    // Проверяем отчет
+                    if (update.message().photo() == null) {
+                        telegramBot.execute(new SendMessage(chatId, PHOTO_REQUIRED));
+                        return;
+                    }
+                    if (!message.contains("1") || !message.contains("2") || !message.contains("3")) {
+                        telegramBot.execute(new SendMessage(chatId, REPORT_INFO_REQUIRED));
+                        return;
+                    }
+                    // Если все ОК, то сохраняем отчет и отписываемся юзеру
+                    Report report = new Report();
+                    report.setReport(message);
+                    report.setDateTime(LocalDateTime.now());
+                    report.setChatId(chatId);
+                    report = reportRepository.save(report);
+                    telegramBot.execute(new SendMessage(chatId, REPORT_ACCEPTED_FOR_CHECKING));
+
+                    // Ищем в базе волонтера и отправляем ему отчет
+                    Volunteer volunteer = volunteerRepository.findAll().stream().findAny().orElseThrow(VolunteerNotFoundException::new);
+                    SendMessage reportToVolunteer = new SendMessage(volunteer.getChatId(), NEW_REPORT
+                            + prepareReportForVolunteer(update, chatId, report)).replyMarkup(prepareVolunteerInlineKeyboard());
+                    telegramBot.execute(reportToVolunteer);
+                }
+            }
             // Сохранение данных пользователя
             if (nextUpdateIsUserContacts) {
                 nextUpdateIsUserContacts = false;
@@ -127,30 +153,6 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                             .replyMarkup(ConflictHelpVolunteerInlineKeyboard());
                     telegramBot.execute(conflictHelpMessage);
                 }
-            }
-            if(report_matcher.matches()) {
-                // Проверяем отчет
-                if (update.message().photo() == null) {
-                    telegramBot.execute(new SendMessage(chatId, PHOTO_REQUIRED));
-                    return;
-                }
-                if (!message.contains("1") || !message.contains("2") || !message.contains("3")) {
-                    telegramBot.execute(new SendMessage(chatId, REPORT_INFO_REQUIRED));
-                    return;
-                }
-                // Если все ОК, то сохраняем отчет и отписываемся юзеру
-                Report report = new Report();
-                report.setReport(message);
-                report.setDateTime(LocalDateTime.now());
-                report.setChatId(chatId);
-                report = reportRepository.save(report);
-                telegramBot.execute(new SendMessage(chatId, REPORT_ACCEPTED_FOR_CHECKING));
-
-                // Ищем в базе волонтера и отправляем ему отчет
-                Volunteer volunteer = volunteerRepository.findAll().stream().findAny().orElseThrow(VolunteerNotFoundException::new);
-                SendMessage reportToVolunteer = new SendMessage(volunteer.getChatId(), NEW_REPORT
-                        + prepareReportForVolunteer(update, chatId, report)).replyMarkup(prepareVolunteerInlineKeyboard());
-                telegramBot.execute(reportToVolunteer);
             }
             switch (message) {
                 case "/start":
@@ -260,6 +262,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                     break;
                 case "/report":
                     SendMessage reportForm = new SendMessage(chatId, REPORT_FORM).replyMarkup(StepBackStartingInlineKeyboard());
+                    nextUpdateIsReport = true;
                     telegramBot.execute(reportForm);
                     break;
                 case "/accept_report":
