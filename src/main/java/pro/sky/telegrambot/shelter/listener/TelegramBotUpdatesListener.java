@@ -43,8 +43,8 @@ import static pro.sky.telegrambot.shelter.model.Info.*;
 public class TelegramBotUpdatesListener implements UpdatesListener {
 
     private final Logger logger = LoggerFactory.getLogger(TelegramBotUpdatesListener.class);
-    private static Pattern PATTERN = Pattern.compile("(\\d{11})\\s+(.*)");
-    private static final Pattern REPORT_PATTER = Pattern.compile("^(О|о)тчет(.*)");
+    private static final Pattern NUMBER_PATTERN = Pattern.compile("(\\d{11})\\s+(.*)");
+    private static final Pattern REPORT_PATTER = Pattern.compile("(.*)\\n+(1.*)\\n+(2.*)\\n+(3.*)");
     private static final Pattern HELP_VOLUNTEER = Pattern.compile("(@.*)\\n+(.*)");
     private boolean nextUpdateIsUserContacts = false;
     private boolean nextUpdateIsHelpVolunteer = false;
@@ -87,16 +87,10 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
             if (nextUpdateIsReport){
                 nextUpdateIsReport = false;
                 Matcher report_matcher = REPORT_PATTER.matcher(message);
-                if(report_matcher.matches()) {
-                    // Проверяем отчет
-                    if (update.message().photo() == null) {
-                        telegramBot.execute(new SendMessage(chatId, PHOTO_REQUIRED));
-                        return;
-                    }
-                    if (!message.contains("1") || !message.contains("2") || !message.contains("3")) {
-                        telegramBot.execute(new SendMessage(chatId, REPORT_INFO_REQUIRED));
-                        return;
-                    }
+                // Проверяем отчет
+                if (!report_matcher.matches() || update.message().photo() == null) {
+                    telegramBot.execute(new SendMessage(chatId, CONFLICT_REPORT).replyMarkup(ConflictReportInlineKeyboard()));
+                } else if(report_matcher.matches()) {
                     // Если все ОК, то сохраняем отчет и отписываемся юзеру
                     Report report = new Report();
                     report.setReport(message);
@@ -115,7 +109,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
             // Сохранение данных пользователя
             if (nextUpdateIsUserContacts) {
                 nextUpdateIsUserContacts = false;
-                Matcher matcher = PATTERN.matcher(message);
+                Matcher matcher = NUMBER_PATTERN.matcher(message);
                 // Проверка на правильность вводимых данных
                 if (!matcher.matches()) {
                     SendMessage ConflictSave = new SendMessage(chatId,CONFLICT_USER_CONTACT)
@@ -274,7 +268,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                 case "/decline_report":
                     String reportToImproveId = update.callbackQuery().message().text().lines().filter(line -> line.startsWith("Идентификатор")).map(line -> StringUtils.removeStart(line, "Идентификатор отчета: ")).findFirst().orElseThrow();
                     Report reportToImprove = reportRepository.findById(Long.valueOf(reportToImproveId)).orElseThrow(ReportNotFoundException::new);
-                    SendMessage messageToUser = new SendMessage(reportToImprove.getChatId(), REPORT_REJECTED);
+                    SendMessage messageToUser = new SendMessage(reportToImprove.getChatId(), REPORT_REJECTED).replyMarkup(ConflictReportInlineKeyboard());
                     telegramBot.execute(messageToUser);
                     break;
                 default:
@@ -388,7 +382,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
      */
     private static InlineKeyboardMarkup prepareVolunteerInlineKeyboard() {
         InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
-        keyboardMarkup.addRow(new InlineKeyboardButton("\uD83C\uDD97 Принять отчет!").callbackData("/accept_report"), new InlineKeyboardButton("\u274E Отправить на доработку!").callbackData("/decline_report"));
+        keyboardMarkup.addRow(new InlineKeyboardButton("\uD83C\uDD97 Принять отчет!").callbackData("/accept_report"), new InlineKeyboardButton("\u274E Отправить \nна доработку!").callbackData("/decline_report"));
         return keyboardMarkup;
     }
 
@@ -411,6 +405,17 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
     private static InlineKeyboardMarkup ConflictHelpVolunteerInlineKeyboard(){
         InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
         keyboardMarkup.addRow(new InlineKeyboardButton("\u2753 Позвать волонтера").callbackData("/help"));
+        return keyboardMarkup;
+    }
+
+    /**
+     * The method provides a keyboard in case of an error when submitting a report
+     *
+     * @return <code>InlineKeyboardMarkup</code>
+     */
+    private static InlineKeyboardMarkup ConflictReportInlineKeyboard(){
+        InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
+        keyboardMarkup.addRow(new InlineKeyboardButton("\uD83D\uDDD2 Сдать отчет").callbackData("/report"));
         return keyboardMarkup;
     }
 
