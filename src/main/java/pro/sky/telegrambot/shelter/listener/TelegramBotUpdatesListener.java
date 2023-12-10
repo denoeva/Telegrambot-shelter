@@ -117,23 +117,21 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
 
                     ReportPhoto reportPhoto = new ReportPhoto();
                     reportPhoto.setReport(report);
+                    byte[] photo;
                     try {
-                        reportPhoto.setReportPhotoData(telegramBot.getFileContent(responsePhoto.file()));
+                        photo = telegramBot.getFileContent(responsePhoto.file());
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
+                    reportPhoto.setReportPhotoData(photo);
                     report.setReportPhoto(reportPhoto);
                     report = reportRepository.save(report);
                     telegramBot.execute(new SendMessage(chatId, REPORT_ACCEPTED_FOR_CHECKING).replyMarkup(ConflictReportInlineKeyboard()));
                     // Ищем в базе волонтера и отправляем ему отчет
                     Volunteer volunteer = volunteerRepository.findAll().stream().findAny().orElseThrow(VolunteerNotFoundException::new);
-                    SendMessage reportToVolunteer = new SendMessage(volunteer.getChatId(), NEW_REPORT
+                    SendPhoto sendPhoto = new SendPhoto(volunteer.getChatId(), photo).caption(NEW_REPORT
                             + prepareReportForVolunteer(update, chatId, report)).replyMarkup(prepareVolunteerInlineKeyboard());
-                    telegramBot.execute(reportToVolunteer);
-                    /// Дописать отправку фото волонтеру
-
-                    //SendPhoto sendPhoto = new SendPhoto(volunteer.getChatId(), );
-                    //telegramBot.execute(sendPhoto);
+                    telegramBot.execute(sendPhoto);
                 }
             }
             // Сохранение данных пользователя
@@ -287,13 +285,15 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                     telegramBot.execute(reportForm);
                     break;
                 case "/accept_report":
-                    String reportId = update.callbackQuery().message().text().lines().filter(line -> line.startsWith("Идентификатор")).map(line -> StringUtils.removeStart(line, "Идентификатор отчета: ")).findFirst().orElseThrow();
+                    String reportId = update.callbackQuery().message().caption().lines().filter(line -> line.startsWith("Идентификатор")).map(line -> StringUtils.removeStart(line, "Идентификатор отчета: ")).findFirst().orElseThrow();
                     Report reportToUpdate = reportRepository.findById(Long.valueOf(reportId)).orElseThrow(ReportNotFoundException::new);
                     reportToUpdate.setCheckedByVolunteer(true);
+                    SendMessage messageToVolunteer = new SendMessage(reportToUpdate.getChatId(), "\uD83D\uDDD2 Отчет принят");
                     reportRepository.save(reportToUpdate);
+                    telegramBot.execute(messageToVolunteer);
                     break;
                 case "/decline_report":
-                    String reportToImproveId = update.callbackQuery().message().text().lines().filter(line -> line.startsWith("Идентификатор")).map(line -> StringUtils.removeStart(line, "Идентификатор отчета: ")).findFirst().orElseThrow();
+                    String reportToImproveId = update.callbackQuery().message().caption().lines().filter(line -> line.startsWith("Идентификатор")).map(line -> StringUtils.removeStart(line, "Идентификатор отчета: ")).findFirst().orElseThrow();
                     Report reportToImprove = reportRepository.findById(Long.valueOf(reportToImproveId)).orElseThrow(ReportNotFoundException::new);
                     SendMessage messageToUser = new SendMessage(reportToImprove.getChatId(), REPORT_REJECTED).replyMarkup(ConflictReportInlineKeyboard());
                     telegramBot.execute(messageToUser);
@@ -330,7 +330,6 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
         sb.append("\nЖивотное: ").append(user.getAnimal().getName());
         sb.append("\nИдентификатор отчета: ").append(report.getReportId());
         sb.append("\nОтчет: ").append(update.message().caption());
-        sb.append("\nФото:");
         return sb.toString();
     }
 
