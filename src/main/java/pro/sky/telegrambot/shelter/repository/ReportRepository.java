@@ -6,7 +6,6 @@ import pro.sky.telegrambot.shelter.model.Report;
 
 import java.util.Set;
 import org.springframework.data.jpa.repository.Query;
-import pro.sky.telegrambot.shelter.model.Report;
 
 import java.util.List;
 
@@ -15,12 +14,11 @@ import java.util.List;
  * @version $Revision: 1 $
  */
 @Repository
-  public interface ReportRepository extends JpaRepository<Report, Long> {
+public interface ReportRepository extends JpaRepository<Report, Long> {
     @Query(
             value = "SELECT r.chat_id FROM report r WHERE r.date_time < now() - interval '1 day'",
             nativeQuery = true)
     List<Long> findAllChatIdsWithLastReportOneDayAgo();
     Set<Report> findListByChatId(Long id);
     Report findByChatId(Long chatId);
-
 }

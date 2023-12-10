@@ -5,7 +5,8 @@ CREATE TABLE report(
     chat_id BIGINT NOT NULL,
     report VARCHAR NOT NULL,
     date_time TIMESTAMP,
-    checked_by_volunteer BOOLEAN
+    checked_by_volunteer BOOLEAN,
+    animal_id BIGSERIAL NOT NULL
 );
 
 -- changeset elena:6
