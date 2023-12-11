@@ -36,7 +36,6 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -69,9 +68,6 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
 
     @Autowired
     private ReportRepository reportRepository;
-
-    @Autowired
-    private ReportPhotoRepository reportPhotoRepository;
 
     @Autowired
     private VolunteerRepository volunteerRepository;
@@ -263,7 +259,8 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                     telegramBot.execute(ContactTemplate);
                     break;
                 case "/take_care":
-                    String animalName = update.callbackQuery().message().caption().lines().filter(line -> line.startsWith("Имя")).map(line -> StringUtils.removeStart(line, "Имя: ")).findFirst().orElseThrow(AnimalNotFoundException::new);
+                    String animalName = update.callbackQuery().message().caption().lines().filter(line -> line.startsWith("Имя"))
+                            .map(line -> StringUtils.removeStart(line, "Имя: ")).findFirst().orElseThrow(AnimalNotFoundException::new);
                     Animal animalToAttach = animalRepository.findAnimalByName(animalName);
                     Users userToAttach = userRepository.findUserByChatId(chatId);
                     animalToAttach.setAttached(true);
@@ -297,6 +294,43 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                     Report reportToImprove = reportRepository.findById(Long.valueOf(reportToImproveId)).orElseThrow(ReportNotFoundException::new);
                     SendMessage messageToUser = new SendMessage(reportToImprove.getChatId(), REPORT_REJECTED).replyMarkup(ConflictReportInlineKeyboard());
                     telegramBot.execute(messageToUser);
+                    break;
+                case "/adoption_decision":
+                    Volunteer volunteer = volunteerRepository.findAll().stream().findAny().orElseThrow(VolunteerNotFoundException::new);
+                    Users user = userRepository.findUserByChatId(chatId);
+                    SendMessage forVolunteer = new SendMessage(volunteer.getChatId(),"\uD83D\uDE4F \uD83D\uDE4F \uD83D\uDE4F \nДорогой волонтер,"
+                            + "\nУ пользователя: " + user.getName() + ",\nс номером: " + user.getPhoneNumber() +"\n"
+                            + END_TRIAL_PERIOD_FOR_VOLUNTEER + "отдавать питомца: " + user.getAnimal().getName()).replyMarkup(adoptionDecision());
+                    telegramBot.execute(forVolunteer);
+                    break;
+                case "/decision_to_refuse":
+                    Animal animalReturnToShelter = userRepository.findAnimal(chatId);
+                    Users userNotToAttachForAnimal = userRepository.findUserByChatId(chatId);
+                    animalReturnToShelter.setAttached(false);
+                    animalReturnToShelter.setUser(null);
+                    userNotToAttachForAnimal.setAnimal(null);
+                    animalRepository.save(animalReturnToShelter);
+                    userRepository.save(userNotToAttachForAnimal);
+                    SendMessage refused = new SendMessage(chatId, END_TRIAL_PERIOD_FOR_USER_BADLY).replyMarkup(ConflictHelpVolunteerInlineKeyboard());
+                    telegramBot.execute(refused);
+                    break;
+                case "/decision_for_confirmation":
+                    Users us = userRepository.findUserByChatId(chatId);
+                    SendMessage congratulation = new SendMessage(chatId, END_TRIAL_PERIOD_FOR_USER_SUCCESS + "теперь питомец: " + us.getAnimal().getName() + " - \nчасть вашей семьи \uD83D\uDC6A");
+                    telegramBot.execute(congratulation);
+                    break;
+                case "/decision_to_extend_probation_period":
+                    Volunteer vol = volunteerRepository.findAll().stream().findAny().orElseThrow(VolunteerNotFoundException::new);
+                    SendMessage extendDays = new SendMessage(vol.getChatId(),"\uD83D\uDDD3 Выберите на сколько дней продлить испытательный срок:").replyMarkup(extendProbationPeriod());
+                    telegramBot.execute(extendDays);
+                    break;
+                case "/extend_by_14_days":
+                    SendMessage extendBy14Days = new SendMessage(chatId, END_TRIAL_PERIOD_FOR_USER_EXTENSION_TIME + "14 дней").replyMarkup(ConflictReportInlineKeyboard());
+                    telegramBot.execute(extendBy14Days);
+                    break;
+                case "/extend_by_30_days":
+                    SendMessage extendBy30Days = new SendMessage(chatId, END_TRIAL_PERIOD_FOR_USER_EXTENSION_TIME + "30 дней").replyMarkup(ConflictReportInlineKeyboard());
+                    telegramBot.execute(extendBy30Days);
                     break;
                 default:
             }
@@ -355,6 +389,30 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
         InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
         keyboardMarkup.addRow(new InlineKeyboardButton("\uD83D\uDD50 График, адрес").callbackData("/schedule"), new InlineKeyboardButton("\uD83D\uDCD1 Контакты").callbackData("/contacts"));
         keyboardMarkup.addRow(new InlineKeyboardButton("\uD83E\uDDBA Техника безопасности").callbackData("/save"));
+        return keyboardMarkup;
+    }
+
+    /**
+     * the method prepares the built-in keyboard with a decision on refusal,
+     * approval, extension of the probation period
+     *
+     * @return <code>InlineKeyboardMarkup</code>
+     */
+    private static InlineKeyboardMarkup adoptionDecision(){
+        InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
+        keyboardMarkup.addRow(new InlineKeyboardButton("Одобрить \uD83D\uDC4D").callbackData("/decision_for_confirmation"), new InlineKeyboardButton("Отказать \uD83D\uDED1").callbackData("/decision_to_refuse"));
+        keyboardMarkup.addRow(new InlineKeyboardButton("Продлить срок \u23F2").callbackData("/decision_to_extend_probation_period"));
+       return keyboardMarkup;
+    }
+
+    /**
+     * this method prepares an integrated keyboard with two options for extending the probation period
+     *
+     * @return <code>InlineKeyboardMarkup</code>
+     */
+    private static InlineKeyboardMarkup extendProbationPeriod(){
+        InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
+        keyboardMarkup.addRow(new InlineKeyboardButton("На 14 дней").callbackData("/extend_by_14_days"), new InlineKeyboardButton("На 30 дней").callbackData("/extend_by_30_days"));
         return keyboardMarkup;
     }
 

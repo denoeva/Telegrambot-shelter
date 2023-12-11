@@ -224,4 +224,11 @@ public final class Info {
 
         public static final String REPORT_REMINDER = "\uD83D\uDD0E Кажется, мы сегодня не получали от Вас отчет о состоянии животного.\nПожалуйста, пришлите отчет как можно скорее\n"
                 + "ℹ\uFE0FОбязательно прикрепи фото животного, и не забывай, что отчет нужно присылать до 21:00.";
+
+        public static final String END_TRIAL_PERIOD_FOR_USER_SUCCESS = "\uD83C\uDF87 \uD83C\uDF87 \uD83C\uDF87 Поздравляем \uD83C\uDF87 \uD83C\uDF87 \uD83C\uDF87 " +
+                "\nВаш испытательный срок закончен,\n";
+        public static final String END_TRIAL_PERIOD_FOR_USER_BADLY = "\uD83D\uDED1 К сожалению,\nВы не прошли испытательный срок\nИ Вам нужно вернуть питомца обратно в приют!" +
+                "\nЕсли хотите обсудить с волонтером причины отказа или возможность усыновления питомца повторно, обращайтесь по клавише ниже";
+        public static final String END_TRIAL_PERIOD_FOR_VOLUNTEER = "\uD83D\uDDD3 Уже прошло 30 дней испытательного срока.\nНужно выбрать, стоит ли\n";
+        public static final String END_TRIAL_PERIOD_FOR_USER_EXTENSION_TIME = "\u23F2 Вам назначен дополнительный испытательный срок: ";
 }
