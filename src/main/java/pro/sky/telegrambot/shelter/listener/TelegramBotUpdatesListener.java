@@ -295,7 +295,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                     SendMessage messageToUser = new SendMessage(reportToImprove.getChatId(), REPORT_REJECTED).replyMarkup(ConflictReportInlineKeyboard());
                     telegramBot.execute(messageToUser);
                     break;
-                case "/adoption_decision":
+                case "/adoption_decision": // Исполняется в классе ReminderSender
                     Volunteer volunteer = volunteerRepository.findAll().stream().findAny().orElseThrow(VolunteerNotFoundException::new);
                     Users user = userRepository.findUserByChatId(chatId);
                     SendMessage forVolunteer = new SendMessage(volunteer.getChatId(),"\uD83D\uDE4F \uD83D\uDE4F \uD83D\uDE4F \nДорогой волонтер,"
@@ -398,7 +398,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
      *
      * @return <code>InlineKeyboardMarkup</code>
      */
-    private static InlineKeyboardMarkup adoptionDecision(){
+    public static InlineKeyboardMarkup adoptionDecision(){
         InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
         keyboardMarkup.addRow(new InlineKeyboardButton("Одобрить \uD83D\uDC4D").callbackData("/decision_for_confirmation"), new InlineKeyboardButton("Отказать \uD83D\uDED1").callbackData("/decision_to_refuse"));
         keyboardMarkup.addRow(new InlineKeyboardButton("Продлить срок \u23F2").callbackData("/decision_to_extend_probation_period"));

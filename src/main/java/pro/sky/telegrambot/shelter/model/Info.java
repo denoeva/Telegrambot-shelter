@@ -229,6 +229,8 @@ public final class Info {
                 "\nВаш испытательный срок закончен,\n";
         public static final String END_TRIAL_PERIOD_FOR_USER_BADLY = "\uD83D\uDED1 К сожалению,\nВы не прошли испытательный срок\nИ Вам нужно вернуть питомца обратно в приют!" +
                 "\nЕсли хотите обсудить с волонтером причины отказа или возможность усыновления питомца повторно, обращайтесь по клавише ниже";
-        public static final String END_TRIAL_PERIOD_FOR_VOLUNTEER = "\uD83D\uDDD3 Уже прошло 30 дней испытательного срока.\nНужно выбрать, стоит ли\n";
+        public static final String END_TRIAL_PERIOD_FOR_VOLUNTEER = "\uD83D\uDDD3 Уже прошло 30 дней испытательного срока, нужное количество отчетов сдано.\nНужно выбрать, стоит ли\n";
+        public static final String END_TRIAL_PERIOD_FOR_VOLUNTEER_INSUFFICIENT_REPORTS = "\uD83D\uDDD3 Уже прошло 30 дней испытательного срока, нужное количество отчетов НЕ сдано.\nНужно выбрать, стоит ли ";
+
         public static final String END_TRIAL_PERIOD_FOR_USER_EXTENSION_TIME = "\u23F2 Вам назначен дополнительный испытательный срок: ";
 }

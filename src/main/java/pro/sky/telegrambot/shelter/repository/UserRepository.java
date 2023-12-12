@@ -18,6 +18,17 @@ public interface UserRepository extends JpaRepository<Users, Long> {
             value = "SELECT * FROM USERS u JOIN report r ON u.chat_id = r.chat_id WHERE r.date_time < now() - interval '2 days'",
             nativeQuery = true)
     List<Users> findAllUsersWithLastReportTwoDaysAgo();
+
+    @Query(
+            value = "select distinct * from users u join report r ON u.chat_id = r.chat_id WHERE u.attached = true AND r.date_time < now() - interval '30 days' AND (select count(*) from report r join users u on r.chat_id = u.chat_id where r.checked_by_volunteer = true) > 29",
+            nativeQuery = true)
+    List<Users> findAllUserChatIDsWhichPassedTestPeriod();
+
+    @Query(
+            value = "select distinct * from users u join report r ON u.chat_id = r.chat_id WHERE u.attached = true AND r.date_time < now() - interval '30 days' AND (select count(*) from report r join users u on r.chat_id = u.chat_id where r.checked_by_volunteer = true) < 30",
+            nativeQuery = true)
+    List<Users> findAllUserChatIDsWhichFailedTestPeriod();
+
     @Query("select u.animal from Users u where u.chatId = :chatId")
     Animal findAnimal(@Param("chatId")Long chatId);
 }
