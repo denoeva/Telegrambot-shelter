@@ -2,11 +2,13 @@ package pro.sky.telegrambot.shelter.controller;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import pro.sky.telegrambot.shelter.model.Animal;
+import pro.sky.telegrambot.shelter.model.Volunteer;
 import pro.sky.telegrambot.shelter.service.AnimalService;
 import pro.sky.telegrambot.shelter.service.PhotoService;
 
@@ -25,7 +27,8 @@ public class AnimalController {
         this.photoService = photoService;
     }
     @PostMapping
-    public Animal create(@RequestBody Animal animal){return animalService.create(animal);
+    public Animal create(@RequestBody Animal animal){
+        return animalService.create(animal);
     }
     @PostMapping(value = "/{animalId}/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Long> save(@PathVariable Long animalId, @RequestBody MultipartFile multipartFile){
@@ -43,6 +46,14 @@ public class AnimalController {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok(animal);
+    }
+    @PutMapping("/{id}")
+    public ResponseEntity<Animal> update(@PathVariable("id") Long id, @RequestBody Animal animal) {
+        Animal foundAnimal = animalService.update(id, animal);
+        if (foundAnimal == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+        return ResponseEntity.ok(foundAnimal);
     }
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable("id")Long id){

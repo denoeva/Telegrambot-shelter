@@ -2,17 +2,45 @@ package pro.sky.telegrambot.shelter.listener;
 
 import com.pengrad.telegrambot.TelegramBot;
 import com.pengrad.telegrambot.UpdatesListener;
+import com.pengrad.telegrambot.model.PhotoSize;
 import com.pengrad.telegrambot.model.Update;
 import com.pengrad.telegrambot.model.request.InlineKeyboardButton;
 import com.pengrad.telegrambot.model.request.InlineKeyboardMarkup;
+import com.pengrad.telegrambot.request.GetFile;
 import com.pengrad.telegrambot.request.SendMessage;
+import com.pengrad.telegrambot.request.SendPhoto;
+import com.pengrad.telegrambot.response.GetFileResponse;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
+import pro.sky.telegrambot.shelter.exceptions.AnimalNotFoundException;
+import pro.sky.telegrambot.shelter.exceptions.PhotoNotFoundException;
+import pro.sky.telegrambot.shelter.exceptions.ReportNotFoundException;
+import pro.sky.telegrambot.shelter.exceptions.VolunteerNotFoundException;
+import pro.sky.telegrambot.shelter.model.*;
+import pro.sky.telegrambot.shelter.repository.*;
+import pro.sky.telegrambot.shelter.model.Animal;
+import pro.sky.telegrambot.shelter.model.Photo;
+import pro.sky.telegrambot.shelter.model.Users;
+import pro.sky.telegrambot.shelter.model.Volunteer;
+import pro.sky.telegrambot.shelter.repository.AnimalRepository;
+import pro.sky.telegrambot.shelter.repository.PhotoRepository;
+import pro.sky.telegrambot.shelter.repository.UserRepository;
+import pro.sky.telegrambot.shelter.repository.VolunteerRepository;
 
 import javax.annotation.PostConstruct;
+import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import static pro.sky.telegrambot.shelter.model.Info.*;
+
 /**
  * Class to process all incoming messages from Telegram
  */
@@ -20,9 +48,29 @@ import java.util.List;
 public class TelegramBotUpdatesListener implements UpdatesListener {
 
     private final Logger logger = LoggerFactory.getLogger(TelegramBotUpdatesListener.class);
-
+    private static final Pattern NUMBER_PATTERN = Pattern.compile("(\\d{11})\\s+(.*)");
+    private static final Pattern REPORT_PATTER = Pattern.compile("(.*)\\n+(1.*)\\n+(2.*)\\n+(3.*)");
+    private static final Pattern HELP_VOLUNTEER = Pattern.compile("(@.*)\\n+(.*)");
+    private boolean nextUpdateIsUserContacts = false;
+    private boolean nextUpdateIsHelpVolunteer = false;
+    private boolean nextUpdateIsReport = false;
     @Autowired
     private TelegramBot telegramBot;
+
+    @Autowired
+    private AnimalRepository animalRepository;
+
+    @Autowired
+    private PhotoRepository photoRepository;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private ReportRepository reportRepository;
+
+    @Autowired
+    private VolunteerRepository volunteerRepository;
 
     @PostConstruct
     public void init() {
@@ -31,6 +79,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
 
     /**
      * Method to process all incoming messages from Telegram
+     *
      * @param updates all updates from bot
      * @return <code>UpdatesListener.CONFIRMED_UPDATES_ALL</code>
      */
@@ -40,212 +89,248 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
             logger.info("Processing update: {}", update);
             Long chatId = extractChatId(update);
             String message = extractMessage(update, chatId);
+            if (message == null){
+                telegramBot.execute(new SendMessage(chatId, "Нет текста в сообщении"));
+                return ;
+            }
+            if (nextUpdateIsReport){
+                nextUpdateIsReport = false;
+                Matcher report_matcher = REPORT_PATTER.matcher(message);
+                // Проверяем отчет
+                if (!report_matcher.matches() || update.message().photo() == null) {
+                    telegramBot.execute(new SendMessage(chatId, CONFLICT_REPORT).replyMarkup(ConflictReportInlineKeyboard()));
+                } else if(report_matcher.matches()) {
+                    // Сохранение и отправка отчета(фото+текст) волонтеру
+                    PhotoSize[] photosize = update.message().photo();
+
+                    Report report = new Report();
+                    report.setReport(message);
+                    report.setDateTime(LocalDateTime.now());
+                    report.setChatId(chatId);
+                    report.setAnimal(userRepository.findAnimal(chatId));
+
+                    GetFileResponse responsePhoto = telegramBot.execute(new GetFile(photosize[photosize.length - 1].fileId()));
+
+                    ReportPhoto reportPhoto = new ReportPhoto();
+                    reportPhoto.setReport(report);
+                    byte[] photo;
+                    try {
+                        photo = telegramBot.getFileContent(responsePhoto.file());
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                    reportPhoto.setReportPhotoData(photo);
+                    report.setReportPhoto(reportPhoto);
+                    report = reportRepository.save(report);
+                    telegramBot.execute(new SendMessage(chatId, REPORT_ACCEPTED_FOR_CHECKING).replyMarkup(ConflictReportInlineKeyboard()));
+                    // Ищем в базе волонтера и отправляем ему отчет
+                    Volunteer volunteer = volunteerRepository.findAll().stream().findAny().orElseThrow(VolunteerNotFoundException::new);
+                    SendPhoto sendPhoto = new SendPhoto(volunteer.getChatId(), photo).caption(NEW_REPORT
+                            + prepareReportForVolunteer(update, chatId, report)).replyMarkup(prepareVolunteerInlineKeyboard());
+                    telegramBot.execute(sendPhoto);
+                }
+            }
+            // Сохранение данных пользователя
+            if (nextUpdateIsUserContacts) {
+                nextUpdateIsUserContacts = false;
+                Matcher matcher = NUMBER_PATTERN.matcher(message);
+                // Проверка на правильность вводимых данных
+                if (!matcher.matches()) {
+                    SendMessage ConflictSave = new SendMessage(chatId,CONFLICT_USER_CONTACT)
+                            .replyMarkup(ConflictSaveUserInlineKeyboard());
+                    telegramBot.execute(ConflictSave);
+                } else if (matcher.matches()){
+                    String phoneNumber = matcher.group(1);
+                    String name = matcher.group(2);
+                    Users users = new Users();
+                    users.setChatId(chatId);
+                    users.setPhoneNumber(phoneNumber);
+                    users.setName(name);
+                    userRepository.save(users);
+                    SendMessage CompleteSave = new SendMessage(chatId,COMPLETE_USER_CONTACT).replyMarkup(StepBackStartingInlineKeyboard());
+                    telegramBot.execute(CompleteSave);
+                }
+            }
+            // Позвать на помощь волонтера
+            if (nextUpdateIsHelpVolunteer) {
+                nextUpdateIsHelpVolunteer = false;
+                Matcher matcher = HELP_VOLUNTEER.matcher(message);
+                // Проверка на правильность оформления запроса
+                if (matcher.matches()){
+                    String userName = matcher.group(1);
+                    String problem = matcher.group(2);
+                    // Поиск волонтера; Ответное сообщение волонтеру (логин и вопрос пользователя)
+                    Volunteer volunteer = volunteerRepository.findAll().stream().findAny().orElseThrow(VolunteerNotFoundException::new);
+                    SendMessage helpMessage = new SendMessage(volunteer.getChatId(),
+                            "\u2753Нужна помощь\u2753\nПользователю: " + userName + ",\nпо вопросу: " + problem);
+                    SendMessage completeHelp = new SendMessage(chatId,HELP_END).replyMarkup(StepBackStartingInlineKeyboard());
+                    telegramBot.execute(helpMessage);
+                    telegramBot.execute(completeHelp);
+                } else if (!matcher.matches()) {
+                    SendMessage conflictHelpMessage = new SendMessage(chatId, HELP_CONFLICT)
+                            .replyMarkup(ConflictHelpVolunteerInlineKeyboard());
+                    telegramBot.execute(conflictHelpMessage);
+                }
+            }
             switch (message) {
                 case "/start":
-                    String welcomeMessage = "Привет!\uD83D\uDC4B \n" +
-                            "Это бот поддержки приюта для животных \"Три столицы\".\n" +
-                            "Здесь вы можете узнать информацию о приюте и посмотреть наших питомцев.\n" +
-                            "Если Вам нужна помощь волонтера, то нажмите:\u2753Позвать волонтера";
-                    SendMessage sendMessage = new SendMessage(chatId, welcomeMessage).replyMarkup(prepareStartingInlineKeyBoard());
+                    SendMessage sendMessage = new SendMessage(chatId, WELCOME_MESSAGE).replyMarkup(prepareStartingInlineKeyBoard());
                     telegramBot.execute(sendMessage);
                     break;
                 case "/schedule":
-                    String scheduleAndAddress = "\n\uD83D\uDD50 Режим работы: С понедельника по пятницу, с 13:00 до 21:00"+
-                            "\n"+
-                            "\uD83C\uDFE2 Адрес: Санкт-Петербург, пр. Большой Смоленский, д. 7-9, лит. А";
-                    SendMessage schedule = new SendMessage(chatId, scheduleAndAddress);
+                    SendMessage schedule = new SendMessage(chatId, SCHEDULE_AND_ADDRESS).replyMarkup(StepBackStartingInlineKeyboard());
                     telegramBot.execute(schedule);
                     break;
                 case "/info":
-                    String shelterInfo = "Мы - некоммерческая организация «Приют для животных»\n«Три столицы».\n" +
-                            "C 2008 года мы спасаем бездомных кошек и собак, заботимся о них, ищем им дом.\n" +
-                            "Мы содержим приют, в котором живут около 20 собак и 10 кошек.\n" +
-                            "При поступлении в приют на каждое животное заводится личная карточка, куда вносятся данные о вакцинации, стерилизации, причинах поступления в приют, " +
-                            "данные о физическом состоянии и характере, ставится отметка с датой передачи в семью.\n" +
-                            "Все животные в приюте круглосуточно находятся под наблюдением сотрудников и ветеринарных врачей."
-                            ;
-                    SendMessage info = new SendMessage(chatId, shelterInfo).replyMarkup(prepareInfoInlineKeyBoard());
+                    SendMessage info = new SendMessage(chatId, SHELTER_INFO).replyMarkup(prepareInfoInlineKeyBoard());
                     telegramBot.execute(info);
                     break;
                 case "/contacts":
-                    String contacts = "\u260E Телефон: +7 999 77 88 999" +
-                            "\n" +
-                            "\uD83E\uDEAA Оформить пропуск на машину по номеру: +7 999 65 36 647"
-                            ;
-                    SendMessage contactInfo = new SendMessage(chatId, contacts);
+                    SendMessage contactInfo = new SendMessage(chatId, CONTACTS).replyMarkup(StepBackStartingInlineKeyboard());
                     telegramBot.execute(contactInfo);
                     break;
                 case "/rules":
-                    String rules = "\uD83D\uDCD5 Правила знакомства:\n" +
-                            "\n" +
-                            "\uD83D\uDD38Понимание обязательств: \nПрежде чем забрать животное из приюта, убедитесь, что вы полностью осознаете свои обязанности и готовы взять на себя ответственность за заботу о нем на протяжении всей его жизни.\n" +
-                            "\n" +
-                            "\uD83D\uDD38Исследуйте породу и особенности: \nПознакомьтесь с породой животного и его особенностями, чтобы быть уверенным, что оно подходит вам по характеру, потребностям и образу жизни.\n" +
-                            "\n" +
-                            "\uD83D\uDD38Участие в программе адопции: \nПриюты зачастую требуют предварительное участие в программе адопции, которая включает заполнение анкеты и обсуждение вашей способности предоставить достойный дом для животного.\n" +
-                            "\n" +
-                            "\uD83D\uDD38Визит в приют: \nПеред тем, как принять окончательное решение, посетите животное в приюте. Возможно, вам будет предоставлена возможность познакомиться с ним, погулять, поговорить с сотрудниками приюта или провести время с ним в игровой комнате. Это позволит вам получить представление о его поведении и характере.\n" +
-                            "\n" +
-                            "\uD83D\uDD38Вопросы и обсуждение: \nЗадавайте вопросы сотрудникам приюта или ветеринару, связанные с здоровьем, поведением или особенностями животного. " +
-                            "Обсудите его рацион питания, лечение от блох и глистов, возможные проблемы со здоровьем и ветеринарное обслуживание.\n" +
-                            "\n" +
-                            "\uD83D\uDD38Организуйте пробежку или прогулку: \nЕсли возможно, устройте прогулку с животным или проведите с ним время на просторе. " +
-                            "Это поможет вам оценить его энергичность и социальность.\n" +
-                            "\n" +
-                            "\uD83D\uDD38Сопроводительное руководство: \nПросите сотрудников приюта поделиться информацией о прошлой жизни животного, его привычках, здоровье и особенностях. " +
-                            "Это поможет вам лучше понять и настроиться на нового члена семьи.\n" +
-                            "\n" +
-                            "\uD83D\uDD38Семейное решение: \nОбсудите и согласуйте решение о взятии животного с членами своей семьи или сожителями, чтобы все были готовы к новому питомцу.\n" +
-                            "\n" +
-                            "\uD83D\uDD38Подготовьте дом: \nПрежде чем привести животное домой, убедитесь, что дом и среда в нем безопасны и подготовлены для приема нового животного. " +
-                            "Установите границы и создайте место для отдыха, игр и питания.\n" +
-                            "\n" +
-                            "\uD83D\uDD38Постепенная адаптация: \nОжидайте, что животное будет нуждаться во времени для приспособления к новому дому и семье. " +
-                            "Уделите ему достаточно внимания, заботы и терпения для создания у него комфортной атмосферы и привязанности к вам.";
-                    SendMessage rulesInfo = new SendMessage(chatId, rules).replyMarkup(prepareRulesInlineKeyBoard());
+                    SendMessage rulesInfo = new SendMessage(chatId, RULES).replyMarkup(prepareRulesInlineKeyBoard());
                     telegramBot.execute(rulesInfo);
                     break;
                 case "/docs":
-                    String docs = "\uD83D\uDCC4 Список документов, необходимых для того, чтобы взять животное из приюта:\n" +
-                            "\n" +
-                            "1. Документ, удостоверяющий личность: Паспорт или другой идентификационный документ, удостоверяющий вашу личность и возраст.\n" +
-                            "\n" +
-                            "2. Заявка на адопцию: Возможно, вам придется заполнить заявку на адопцию, в которой вы предоставите свои личные данные, мотивацию для взятия питомца, предыдущий опыт владения животными и другую информацию.\n" +
-                            "\n" +
-                            "3. Договор адопции: Вам могут потребовать подписание договора адопции, где будут установлены условия и правила по уходу за животным, а также обязательства, которые вы берете на себя. Читайте и понимайте договор перед его подписанием.\n" +
-                            "\n" +
-                            "4. Справка от ветеринара: Приют может запросить справку от вашего ветеринара, подтверждающую, что вы в состоянии обеспечить заботу и надлежащее медицинское обслуживание для животного.\n" +
-                            "\n" +
-                            "5. Свидетельство о постоянном месте жительства: В некоторых случаях вам может потребоваться предоставление свидетельства о вашем постоянном месте жительства для подтверждения, что вы можете обеспечить достойные условия для питомца.\n" +
-                            "\n" +
-                            "6. Оплата адопционного сбора: В приютах обычно взимается адопционный сбор для покрытия расходов на уход, медицинское обслуживание и другие нужды животного. Уточните сумму и способы оплаты в приюте.\n" +
-                            "\n" +
-                            "7. Личная встреча и согласование: Возможно, вам потребуется пройти личную встречу с представителями приюта или провести обязательное согласование, чтобы убедиться, что вы чувствуете себя комфортно с животным и готовы взять его домой.\n" +
-                            "\n" +
-                            "Важно отметить, что эти требования могут различаться, поэтому лучше связаться с выбранным приютом и узнать о конкретных документах и процедуре, необходимых для адопции животного.";
-                    SendMessage docsInfo = new SendMessage(chatId, docs);
+                    SendMessage docsInfo = new SendMessage(chatId, DOCS).replyMarkup(StepBackStartingInlineKeyboard());
                     telegramBot.execute(docsInfo);
                     break;
                 case "/recommends":
-                    String recommends = "\uD83D\uDD16 Рекомендации:\n"+
-                            "\n" +
-                            "\uD83D\uDE8C Правила перевоза животных разными видами транспорта:\n" +
-                            "Для разных видов транспорта существуют свои правила перевозки животных.\n" +
-                            "Проезд животных регламентируется определенными правилами, которые следует соблюдать владельцу. " +
-                            "Мы собрали для вас правила для всех видов транспорта: наземного, метро, личного автомобиля и самолета.\n" +
-                            "\uD83D\uDCD5 Не пренебрегайте ими, чтобы потом у вас не возникло проблемы с проездом животных в транспорте!\n" +
-                            "\n" +
-                            "\uD83D\uDC36 Как обустроить дом, если вы решили завести щенка или котенка?\n" +
-                            "Успешная подготовка к появлению питомца начинается с небольшого приготовления к первым нескольким дням совместной жизни с домашним любимцем.\n" +
-                            "\n" +
-                            "\uD83C\uDFD8 Обустройства дома для взрослого животного. Думаете завести кошку, собаку, морскую свинку или хомячка?\n" +
-                            "\uD83D\uDCD5 Существует 4 важных правила по уходу за животными, которых нужно придерживаться хозяевам:\n" +
-                            "1. Регулярно наблюдайте за здоровьем и питанием питомца.\n" +
-                            "2. Следите за гигиеной животного и его жилища.\n" +
-                            "3. Гуляйте и играйте с любимцем.\n" +
-                            "4. Обустройте питомцу собственный уголок.\n" +
-                            "\n" +
-                            "\uD83D\uDD4A Бывают ситуации, когда из-за врожденных особенностей, болезни или травмы, собака становится инвалидом. Может показаться, что жизнь такого питомца будет полна страданий, но это заблуждение. Если собака не испытывает болей, а хозяин готов ухаживать и помогать собаке адаптироваться к новой жизни, то она как правило и не замечет неудобств, связанных с особенностями ее здоровья. К таким животным нужен особенный подход.";
-                    SendMessage recommendsInfo = new SendMessage(chatId, recommends);
+                    SendMessage recommendsInfo = new SendMessage(chatId, RECOMMENDATIONS).replyMarkup(StepBackStartingInlineKeyboard());
                     telegramBot.execute(recommendsInfo);
                     break;
                 case "/save":
-                    String saveInstructions = "\uD83E\uDDBA Находясь на территории приюта, пожалуйста, соблюдайте наши правила и технику безопасности!\n" +
-                            "\n"+
-                            "Запрещается:\n" + "\uD83D\uDD12 Самостоятельно открывать выгулы и вольеры без разрешения работника приюта.\n" +
-                            "\uD83C\uDF2D Кормить животных.\n" + "Этим Вы можете спровоцировать драку. Угощения разрешены только постоянным опекунам и волонтерам, во время прогулок с животными на поводке.\n" +
-                            "\uD83D\uDDD1 Оставлять после себя мусор на территории приюта и прилегающей территории.\n" +
-                            "\uD83D\uDED1 Подходить близко к вольерам и гладить собак через сетку на выгулах. Животные могут быть агрессивны!\n" +
-                            "\uD83D\uDE3F Кричать, размахивать руками, бегать между будками или вольерами, пугать и дразнить животных.\n" +
-                            "\uD83D\uDC6A Посещение приюта для детей дошкольного и младшего школьного возраста без сопровождения взрослых.\n" +
-                            "\uD83C\uDF7E Посещение приюта в состоянии алкогольного, наркотического опьянения.";
-                    SendMessage safetyInstructions = new SendMessage(chatId, saveInstructions);
+                    SendMessage safetyInstructions = new SendMessage(chatId, SAVE_INSTRUCTIONS).replyMarkup(StepBackStartingInlineKeyboard());
                     telegramBot.execute(safetyInstructions);
                     break;
                 case "/reject":
-                    String reasonsForRejection = "\uD83D\uDED1 Мы можем отказаться доверить Вам животное по нескольким причинам:\n" +
-                            "1. Отказ обеспечить обязательные условия безопасности питомца на новом месте\n" +
-                            "2. Нестабильные отношения в семье, в которую хотят забрать питомца\n" +
-                            "3. Наличие дома большого количества животных\n" +
-                            "4. Маленькие дети в семье (Мы не против детей, но при выборе семьи приоритетом является польза для животных, многие из которых с трудом социализировались после психотравм)\n" +
-                            "5. Аллергия на шерсть\n" +
-                            "6. Животное забирают в подарок кому-то\n" +
-                            "7. Животное забирают в целях использования его рабочих качеств\n" +
-                            "8. Отсутствие регистрации и собственного жилья или его несоответствие нормам приюта";
-                    SendMessage reasonsForRejections = new SendMessage(chatId, reasonsForRejection);
+                    SendMessage reasonsForRejections = new SendMessage(chatId, REASONS_FOR_REJECTION).replyMarkup(StepBackStartingInlineKeyboard());
                     telegramBot.execute(reasonsForRejections);
                     break;
                 case "/tipsFromDogHandler":
-                    String tipsFromDogHandler = "\uD83D\uDC36 Советы кинолога по общению с собакой:\n" +
-                            "\n" +
-                            "\ud83d\ude0d 1. Время вместе.\n" +
-                            "Чем больше вы будете проводить время с собакой, тем крепче станет ваша эмоциональная связь. Не стоит ограничиваться одними прогулками - животному нужно больше вашего внимания.\n" +
-                            "\n" +
-                            "Проводите совместные игры, ухаживайте за псом, чтобы он увидел, что интересен вам всегда.\n" +
-                            "\n" +
-                            "\ud83d\ude35 2. Не бейте.\n" +
-                            "Животное никогда не будет воспринимать побои в качестве метода воспитания: насилие может породить страх, но никак не любовь. Страх никогда не заставит собаку быть вам преданной.\n" +
-                            "\n" +
-                            "Воспитывать пса нужно только через позитивные методы: дать вкусняшку за хорошее поведение или отругать строгим голосом за плохое.\n" +
-                            "\n" +
-                            "\ud83d\ude2d 3. Уважайте чувства.\n" +
-                            "Животное может испытывать разные эмоции - страх, любопытство, обиду, радость, злость. Не стоит обесценивать их чувства - собака может вполне обоснованно на вас обидеться.\n" +
-                            "\n" +
-                            "Даже если вы сильно устали, то не стоит прогонять любимца: уделите ему хотя бы 5 минут.\n"+
-                            "\n" +
-                            "\ud83d\ude33 4. Нормальные прогулки.\n" +
-                            "Животное может отправиться на улицу только с вами, поэтому радостно ждет каждой прогулки. Ведите себя на улице адекватно: если пес хочет изучить территорию, то не стоит его грубо одергивать. В конце концов, это просто его инстинкты, а не желание вам досадить.\n" +
-                            "\n" +
-                            "Выбирайтесь хотя бы в выходные на природу, чтобы пес мог вдоволь насладиться свободой и свежим воздухом.\n" +
-                            "\n" +
-                            "\ud83d\udd70 5. Организованность.\n" +
-                            "Собаки любят, когда все жизненные события происходят по расписанию: еда появляется в одно и то же время, на улицу вы ходите тоже в определенные часы.\n" +
-                            "\n" +
-                            "Благодаря такому подходу животное поймет, что вам можно доверять, и вам удастся выстроить нормальные взаимоотношения."
-                            ;
-                    SendMessage tipsFromDogHandlerInfo = new SendMessage(chatId, tipsFromDogHandler);
+                    SendMessage tipsFromDogHandlerInfo = new SendMessage(chatId, TIPS_FOR_DOG_HANDLER).replyMarkup(StepBackStartingInlineKeyboard());
                     telegramBot.execute(tipsFromDogHandlerInfo);
                     break;
                 case "/recommendationsForProvenDogHandlers":
-                    String recommendationsForProvenDogHandlers = "\ud83d\udd76 По каким критериям нужно выбирать кинолога?\n"+
-                            "\n" +
-                            "\ud83e\udd14 1. Образование.\n" +
-                            "Хороший кинолог – это не просто человек, который любит собак. Он должен отлично разбираться в психологии животных, уметь считывать язык тела, знать анатомию и физиологию, разбираться в породах. " +
-                            "Такой специалист обязательно предложит несколько способов решения задач, всегда будет мотивировать собаку и никогда не будет принуждать к занятиям.\n" +
-                            "\n" +
-                            "\ud83d\ude35 2. Методика обучения.\n" +
-                            "Грамотный специалист всегда расскажет, что и зачем он делает, при этом используя понятный и доступный язык для объяснения принципов своей работы. " +
-                            "Обратите внимание на то, как реагирует на кинолога собака, комфортно ли ей работать с ним. Важно, чтобы к питомцу не применяли силу и не заставляли работать насильно. " +
-                            "Методы, основанные на принуждении и насилии, сделают собаку запуганной и пассивной, сформируют страх и отвращение к занятиям. Таких методов надо избегать.\n" +
-                            "\n" +
-                            "\ud83d\ude14 3. Опыт.\n" +
-                            "Не нужно полагаться только на опыт, но и недооценивать его тоже не стоит. Следует поинтересоваться, как долго специалист работает с собаками. " +
-                            "Можно поискать отзывы о работе кинолога и рекомендации других владельцев собак. Безусловно, не нужно оценивать работу специалиста только по отзывам из интернета.\n" +
-                            "\n" +
-                            "\ud83d\ude44 4. Цели.\n" +
-                            "Выбирая специалиста, необходимо учитывать цели. Этот фактор может быть решающим при выборе специалиста, поскольку будет учитываться опыт и специализация каждого конкретного кинолога. " +
-                            "От того, что необходимо получить в итоге, зависит выбор.\n"
-                            ;
-                    SendMessage recommendationsForProvenDogHandlersInfo = new SendMessage(chatId, recommendationsForProvenDogHandlers);
+                    SendMessage recommendationsForProvenDogHandlersInfo = new SendMessage(chatId, RECS_FOR_PROVEN_DOG_HANDLER).replyMarkup(StepBackStartingInlineKeyboard());
                     telegramBot.execute(recommendationsForProvenDogHandlersInfo);
                     break;
                 case "/reasonsForRefusal":
-                    String reasonsForRefusal = "\ud83d\ude1f Причины отказа приютить питомца: \n" +
-                            "\n" +
-                            "1. Большое количество животных дома.\n" +
-                            "\n" +
-                            "2. Нестабильные отношения в семье.\n" +
-                            "\n" +
-                            "3. Наличие маленьких детей.\n" +
-                            "\n" +
-                            "4. Съемное жилье.\n" +
-                            "\n" +
-                            "5. Животное в подарок или для работы.\n" +
-                            "\n" +
-                            "\ud83d\udcaf Каждый критерий важен \ud83d\udcaf"
-                            ;
-                    SendMessage reasonsForRefusingTakeDogFromShelter = new SendMessage(chatId, reasonsForRefusal);
+                    SendMessage reasonsForRefusingTakeDogFromShelter = new SendMessage(chatId, REASONS_FOR_REFUSAL).replyMarkup(StepBackStartingInlineKeyboard());
                     telegramBot.execute(reasonsForRefusingTakeDogFromShelter);
+                    break;
+                case "/animals":
+                    SendMessage animals = new SendMessage(chatId, ANIMALS).replyMarkup(prepareAnimalsInlineKeyBoard());
+                    telegramBot.execute(animals);
+                    break;
+                case "/cats":
+                    animalRepository.findAnimalsByAttachedFalseAndTypeOfAnimal(Animal.TypeOfAnimal.CAT).forEach(
+                            animal -> {
+                                try {
+                                    Photo animalPhoto = photoRepository.findFirstByAnimal(animal).orElseThrow(PhotoNotFoundException::new);
+                                    SendPhoto photo = new SendPhoto(chatId, animalPhoto.getData()).caption(prepareAnimalForBot(animal)).replyMarkup(prepareAnimaChosenInlineKeyboard());
+                                    telegramBot.execute(photo);
+                                } catch (PhotoNotFoundException ignored) {
+                                    SendMessage messageWithOutPhoto = new SendMessage(chatId, prepareAnimalForBot(animal)).replyMarkup(prepareAnimaChosenInlineKeyboard());
+                                    telegramBot.execute(messageWithOutPhoto);
+                                }
+                            }
+                    );
+                    break;
+                case "/dogs":
+                    animalRepository.findAnimalsByAttachedFalseAndTypeOfAnimal(Animal.TypeOfAnimal.DOG).forEach(
+                            animal -> {
+                                try {
+                                    Photo animalPhoto = photoRepository.findFirstByAnimal(animal).orElseThrow(PhotoNotFoundException::new);
+                                    SendPhoto photo = new SendPhoto(chatId, animalPhoto.getData()).caption(prepareAnimalForBot(animal)).replyMarkup(prepareAnimaChosenInlineKeyboard());
+                                    telegramBot.execute(photo);
+                                } catch (PhotoNotFoundException ignored) {
+                                    SendMessage messageWithOutPhoto = new SendMessage(chatId, prepareAnimalForBot(animal)).replyMarkup(prepareAnimaChosenInlineKeyboard());
+                                    telegramBot.execute(messageWithOutPhoto);
+                                }
+                            }
+                    );
+                    break;
+                case "/save_user":
+                    SendMessage ContactTemplate = new SendMessage(chatId,USER_CONTACT);
+                    nextUpdateIsUserContacts = true;
+                    telegramBot.execute(ContactTemplate);
+                    break;
+                case "/take_care":
+                    String animalName = update.callbackQuery().message().caption().lines().filter(line -> line.startsWith("Имя"))
+                            .map(line -> StringUtils.removeStart(line, "Имя: ")).findFirst().orElseThrow(AnimalNotFoundException::new);
+                    Animal animalToAttach = animalRepository.findAnimalByName(animalName);
+                    Users userToAttach = userRepository.findUserByChatId(chatId);
+                    animalToAttach.setAttached(true);
+                    animalToAttach.setUser(userToAttach);
+                    userToAttach.setAnimal(animalToAttach);
+                    animalRepository.save(animalToAttach);
+                    userRepository.save(userToAttach);
+                    SendMessage attached = new SendMessage(chatId, INFO_AFTER_ATTACHMENT).replyMarkup(ConflictReportInlineKeyboard());
+                    telegramBot.execute(attached);
+                    break;
+                case "/help":
+                    SendMessage HelpVolunteer = new SendMessage(chatId, HELP_START);
+                    nextUpdateIsHelpVolunteer = true;
+                    telegramBot.execute(HelpVolunteer);
+                    break;
+                case "/report":
+                    SendMessage reportForm = new SendMessage(chatId, REPORT_FORM).replyMarkup(StepBackStartingInlineKeyboard());
+                    nextUpdateIsReport = true;
+                    telegramBot.execute(reportForm);
+                    break;
+                case "/accept_report":
+                    String reportId = update.callbackQuery().message().caption().lines().filter(line -> line.startsWith("Идентификатор")).map(line -> StringUtils.removeStart(line, "Идентификатор отчета: ")).findFirst().orElseThrow();
+                    Report reportToUpdate = reportRepository.findById(Long.valueOf(reportId)).orElseThrow(ReportNotFoundException::new);
+                    reportToUpdate.setCheckedByVolunteer(true);
+                    SendMessage messageToVolunteer = new SendMessage(reportToUpdate.getChatId(), "\uD83D\uDDD2 Отчет принят");
+                    reportRepository.save(reportToUpdate);
+                    telegramBot.execute(messageToVolunteer);
+                    break;
+                case "/decline_report":
+                    String reportToImproveId = update.callbackQuery().message().caption().lines().filter(line -> line.startsWith("Идентификатор")).map(line -> StringUtils.removeStart(line, "Идентификатор отчета: ")).findFirst().orElseThrow();
+                    Report reportToImprove = reportRepository.findById(Long.valueOf(reportToImproveId)).orElseThrow(ReportNotFoundException::new);
+                    SendMessage messageToUser = new SendMessage(reportToImprove.getChatId(), REPORT_REJECTED).replyMarkup(ConflictReportInlineKeyboard());
+                    telegramBot.execute(messageToUser);
+                    break;
+                case "/adoption_decision": // Исполняется в классе ReminderSender
+                    Volunteer volunteer = volunteerRepository.findAll().stream().findAny().orElseThrow(VolunteerNotFoundException::new);
+                    Users user = userRepository.findUserByChatId(chatId);
+                    SendMessage forVolunteer = new SendMessage(volunteer.getChatId(),"\uD83D\uDE4F \uD83D\uDE4F \uD83D\uDE4F \nДорогой волонтер,"
+                            + "\nУ пользователя: " + user.getName() + ",\nс номером: " + user.getPhoneNumber() +"\n"
+                            + END_TRIAL_PERIOD_FOR_VOLUNTEER + "отдавать питомца: " + user.getAnimal().getName()).replyMarkup(adoptionDecision());
+                    telegramBot.execute(forVolunteer);
+                    break;
+                case "/decision_to_refuse":
+                    Animal animalReturnToShelter = userRepository.findAnimal(chatId);
+                    Users userNotToAttachForAnimal = userRepository.findUserByChatId(chatId);
+                    animalReturnToShelter.setAttached(false);
+                    animalReturnToShelter.setUser(null);
+                    userNotToAttachForAnimal.setAnimal(null);
+                    animalRepository.save(animalReturnToShelter);
+                    userRepository.save(userNotToAttachForAnimal);
+                    SendMessage refused = new SendMessage(chatId, END_TRIAL_PERIOD_FOR_USER_BADLY).replyMarkup(ConflictHelpVolunteerInlineKeyboard());
+                    telegramBot.execute(refused);
+                    break;
+                case "/decision_for_confirmation":
+                    Users us = userRepository.findUserByChatId(chatId);
+                    SendMessage congratulation = new SendMessage(chatId, END_TRIAL_PERIOD_FOR_USER_SUCCESS + "теперь питомец: " + us.getAnimal().getName() + " - \nчасть вашей семьи \uD83D\uDC6A");
+                    telegramBot.execute(congratulation);
+                    break;
+                case "/decision_to_extend_probation_period":
+                    Volunteer vol = volunteerRepository.findAll().stream().findAny().orElseThrow(VolunteerNotFoundException::new);
+                    SendMessage extendDays = new SendMessage(vol.getChatId(),"\uD83D\uDDD3 Выберите на сколько дней продлить испытательный срок:").replyMarkup(extendProbationPeriod());
+                    telegramBot.execute(extendDays);
+                    break;
+                case "/extend_by_14_days":
+                    SendMessage extendBy14Days = new SendMessage(chatId, END_TRIAL_PERIOD_FOR_USER_EXTENSION_TIME + "14 дней").replyMarkup(ConflictReportInlineKeyboard());
+                    telegramBot.execute(extendBy14Days);
+                    break;
+                case "/extend_by_30_days":
+                    SendMessage extendBy30Days = new SendMessage(chatId, END_TRIAL_PERIOD_FOR_USER_EXTENSION_TIME + "30 дней").replyMarkup(ConflictReportInlineKeyboard());
+                    telegramBot.execute(extendBy30Days);
                     break;
                 default:
             }
@@ -255,17 +340,49 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
 
     /**
      * Method prepares starting inline keyboard
+     *
+     * @param animal animal entity from database
+     * @return representation of animal to send in message
+     */
+    private String prepareAnimalForBot(Animal animal) {
+        return "Имя: " + animal.getName() + "\nПорода: " + animal.getBreed() + "\nПол: " + animal.getGender() +
+                "\nОкрас: " + animal.getColor() + "\nДата рождения: " + animal.getDOB().format(DateTimeFormatter.ISO_LOCAL_DATE) +
+                "\nСостояние здоровья: " + animal.getHealth() + "\nХарактер: " + animal.getCharacteristic();
+    }
+    /**
+     * Method prepares starting inline keyboard
+     *
+     * @param chatId to extract user and animal name
+     * @param report to extract report ID and text
+     * @return representation of report to send to volunteer
+     */
+    private String prepareReportForVolunteer(Update update, Long chatId, Report report) {
+        Users user = userRepository.findUserByChatId(chatId);
+        StringBuilder sb = new StringBuilder();
+        sb.append("\nДата: ").append(report.getDateTime().toString());
+        sb.append("\nОпекун: ").append(user.getName());
+        sb.append("\nЖивотное: ").append(user.getAnimal().getName());
+        sb.append("\nИдентификатор отчета: ").append(report.getReportId());
+        sb.append("\nОтчет: ").append(update.message().caption());
+        return sb.toString();
+    }
+
+    /**
+     * Method prepares starting inline keyboard
+     *
      * @return <code>InlineKeyboardMarkup</code>
      */
     private static InlineKeyboardMarkup prepareStartingInlineKeyBoard() {
         InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
         keyboardMarkup.addRow(new InlineKeyboardButton("ℹ\uFE0F Информация").callbackData("/info"), new InlineKeyboardButton("\uD83D\uDC36 Животные").callbackData("/animals"));
         keyboardMarkup.addRow(new InlineKeyboardButton("\uD83D\uDCD5 Правила").callbackData("/rules"), new InlineKeyboardButton("\u2753 Позвать волонтера").callbackData("/help"));
-        keyboardMarkup.addRow(new InlineKeyboardButton("\uD83D\uDD8B Принять контакты").callbackData("/save_user"));
+        keyboardMarkup.addRow(new InlineKeyboardButton("\uD83D\uDD8B Принять контакты").callbackData("/save_user"), new InlineKeyboardButton("\uD83D\uDDD2 Сдать отчет").callbackData("/report"));
         return keyboardMarkup;
     }
+
     /**
      * Method prepares inline keyboard with information about shelter
+     *
      * @return <code>InlineKeyboardMarkup</code>
      */
     private static InlineKeyboardMarkup prepareInfoInlineKeyBoard() {
@@ -274,8 +391,34 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
         keyboardMarkup.addRow(new InlineKeyboardButton("\uD83E\uDDBA Техника безопасности").callbackData("/save"));
         return keyboardMarkup;
     }
+
+    /**
+     * the method prepares the built-in keyboard with a decision on refusal,
+     * approval, extension of the probation period
+     *
+     * @return <code>InlineKeyboardMarkup</code>
+     */
+    public static InlineKeyboardMarkup adoptionDecision(){
+        InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
+        keyboardMarkup.addRow(new InlineKeyboardButton("Одобрить \uD83D\uDC4D").callbackData("/decision_for_confirmation"), new InlineKeyboardButton("Отказать \uD83D\uDED1").callbackData("/decision_to_refuse"));
+        keyboardMarkup.addRow(new InlineKeyboardButton("Продлить срок \u23F2").callbackData("/decision_to_extend_probation_period"));
+       return keyboardMarkup;
+    }
+
+    /**
+     * this method prepares an integrated keyboard with two options for extending the probation period
+     *
+     * @return <code>InlineKeyboardMarkup</code>
+     */
+    private static InlineKeyboardMarkup extendProbationPeriod(){
+        InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
+        keyboardMarkup.addRow(new InlineKeyboardButton("На 14 дней").callbackData("/extend_by_14_days"), new InlineKeyboardButton("На 30 дней").callbackData("/extend_by_30_days"));
+        return keyboardMarkup;
+    }
+
     /**
      * Method prepares inline keyboard with information about documents
+     *
      * @return <code>InlineKeyboardMarkup</code>
      */
     private static InlineKeyboardMarkup prepareRulesInlineKeyBoard() {
@@ -286,9 +429,86 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
     }
 
     /**
+     * Method prepares inline keyboard to choose cats or dogs to look at
+     *
+     * @return <code>InlineKeyboardMarkup</code>
+     */
+    private static InlineKeyboardMarkup prepareAnimalsInlineKeyBoard() {
+        InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
+        keyboardMarkup.addRow(new InlineKeyboardButton("\uD83D\uDC31 Кошки").callbackData("/cats"), new InlineKeyboardButton("\uD83D\uDC36 Собаки").callbackData("/dogs"));
+        return keyboardMarkup;
+    }
+
+    /**
+     * Method prepares inline keyboard to choose the animal to be attached
+     *
+     * @return <code>InlineKeyboardMarkup</code>
+     */
+    private static InlineKeyboardMarkup prepareAnimaChosenInlineKeyboard() {
+        InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
+        keyboardMarkup.addRow(new InlineKeyboardButton("\uD83D\uDE3B Хочу позаботиться!").callbackData("/take_care"));
+        return keyboardMarkup;
+    }
+    /**
+     * The method provides a keyboard in case of an error saving a contact
+     *
+     * @return <code>InlineKeyboardMarkup</code>
+     */
+    private static InlineKeyboardMarkup ConflictSaveUserInlineKeyboard(){
+        InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
+        keyboardMarkup.addRow(new InlineKeyboardButton("\uD83D\uDD8B Принять контакты").callbackData("/save_user"));
+        return keyboardMarkup;
+    }
+
+    /**
+     * Method prepares inline keyboard for volunteer to accept or decline user report
+     *
+     * @return <code>InlineKeyboardMarkup</code>
+     */
+    private static InlineKeyboardMarkup prepareVolunteerInlineKeyboard() {
+        InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
+        keyboardMarkup.addRow(new InlineKeyboardButton("\uD83C\uDD97 Принять отчет").callbackData("/accept_report"), new InlineKeyboardButton("\u274E На доработку").callbackData("/decline_report"));
+        return keyboardMarkup;
+    }
+
+    /**
+     * Method returns to the starting menu
+     *
+     * @return <code>InlineKeyboardMarkup</code>
+     */
+    private static InlineKeyboardMarkup StepBackStartingInlineKeyboard() {
+        InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
+        keyboardMarkup.addRow(new InlineKeyboardButton("\uD83D\uDD19 Назад").callbackData("/start"));
+        return keyboardMarkup;
+    }
+
+    /**
+     * The method provides a keyboard in case of an error, a volunteer call
+     *
+     * @return <code>InlineKeyboardMarkup</code>
+     */
+    private static InlineKeyboardMarkup ConflictHelpVolunteerInlineKeyboard(){
+        InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
+        keyboardMarkup.addRow(new InlineKeyboardButton("\u2753 Позвать волонтера").callbackData("/help"));
+        return keyboardMarkup;
+    }
+
+    /**
+     * The method provides a keyboard in case of an error when submitting a report
+     *
+     * @return <code>InlineKeyboardMarkup</code>
+     */
+    private static InlineKeyboardMarkup ConflictReportInlineKeyboard(){
+        InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
+        keyboardMarkup.addRow(new InlineKeyboardButton("\uD83D\uDDD2 Сдать отчет").callbackData("/report"));
+        return keyboardMarkup;
+    }
+
+    /**
      * Method to get chat ID depending on the type of message (callback, edited message or common message)
-     * @throws NullPointerException If no ID was extracted
+     *
      * @return <code>Long</code>
+     * @throws NullPointerException If no ID was extracted
      */
     private Long extractChatId(Update update) {
         try {
@@ -304,24 +524,25 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
             throw new RuntimeException();
         }
     }
+
     /**
      * Method to get text of the message depending on the type of message (callback, edited message or common message)
-     * @throws NullPointerException  If no message text was extracted
+     *
      * @return <code>String</code>
+     * @throws NullPointerException If no message text was extracted
      */
+    @Nullable
     private String extractMessage(Update update, Long chatId) {
-        try {
-            if (!(update.callbackQuery() == null)) {
-                return update.callbackQuery().data();
-            } else if (!(update.editedMessage() == null)) {
-                return update.editedMessage().text();
-            } else {
-                return update.message().text();
-            }
-        } catch (NullPointerException e) {
-            logger.error("Message body is null");
-            throw new RuntimeException();
+        if (update.callbackQuery() != null) {
+            return update.callbackQuery().data();
+        } else if (update.editedMessage() != null) {
+            return update.editedMessage().text();
+        } else if (update.message() != null && update.message().caption() != null) {
+            return update.message().caption();
+        } else if (update.message() != null){
+            return update.message().text();
+        } else {
+            return null;
         }
     }
-
 }
